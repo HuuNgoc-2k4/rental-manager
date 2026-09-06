@@ -2,7 +2,7 @@
     $currentUser = Auth::user();
     $roleEnum = $currentUser->roleEnum();
 @endphp
-<header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-40 relative">
+<header class="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 z-30 relative">
     <div class="flex items-center gap-4 flex-1">
         <button type="button" onclick="window.toggleMobileSidebar()" aria-label="Mở menu"
                 class="md:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors">
@@ -10,17 +10,17 @@
         </button>
     </div>
 
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2 md:gap-4">
         @if($roleEnum)
-            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $roleEnum->color() }}">
+            <span class="hidden sm:inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $roleEnum->color() }}">
                 {{ $roleEnum->label() }}
             </span>
         @endif
 
-        <div class="h-8 w-[1px] bg-slate-200"></div>
+        <div class="hidden sm:block h-8 w-[1px] bg-slate-200"></div>
 
         <div class="flex items-center gap-3">
-            <div class="text-right min-w-0">
+            <div class="hidden sm:block text-right min-w-0 max-w-[40vw]">
                 <p class="text-sm font-bold text-slate-800 break-words">{{ $currentUser->name }}</p>
                 <p class="text-[11px] text-slate-500 font-medium break-words">{{ $currentUser->email ?? $currentUser->phone }}</p>
             </div>

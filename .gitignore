@@ -28,7 +28,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# Dataset ảnh đồng hồ + trọng số model YOLO — dung lượng GB, tải bằng script (xem docs)
 /datasets
 *.pt
 *.onnx
+
+# Test — chạy ở local, không đẩy lên repo
+/tests

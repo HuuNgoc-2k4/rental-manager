@@ -20,21 +20,21 @@
 </head>
 <body class="bg-slate-50 overflow-hidden">
 
-<div class="flex h-screen overflow-hidden">
+<div class="flex h-dvh overflow-hidden">
     @include('layouts.sidebar')
 
     <div class="flex-1 flex flex-col overflow-hidden">
         @include('layouts.navbar')
 
-        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 md:p-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">@yield('title')</h1>
+                    <h1 class="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">@yield('title')</h1>
                     @hasSection('subtitle')
                         <p class="text-slate-500 text-sm font-medium mt-1">@yield('subtitle')</p>
                     @endif
                 </div>
-                <div class="flex gap-3 items-center">
+                <div class="flex flex-wrap gap-3 items-center">
                     @yield('page_actions')
                 </div>
             </div>

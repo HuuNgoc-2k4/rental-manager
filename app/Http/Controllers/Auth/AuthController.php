@@ -63,38 +63,6 @@ class AuthController extends Controller
     }
 
     /**
-     * @return View
-     */
-    public function showRegisterForm()
-    {
-        return view('auth.register');
-    }
-
-    /**
-     * Chủ hộ tự đăng ký — tài khoản vào trạng thái chờ quản trị viên duyệt.
-     *
-     * @param Request $request
-     * @return RedirectResponse
-     */
-    public function register(Request $request)
-    {
-        $data = $request->only(['name', 'email', 'phone', 'password', 'password_confirmation']);
-
-        $validator = $this->authValidator->registerValidator($data);
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
-
-        $result = $this->authService->register($data);
-
-        if (!$result['status']) {
-            return back()->with('error', $result['message'])->withInput();
-        }
-
-        return redirect()->route('login')->with('success', $result['message']);
-    }
-
-    /**
      * @param Request $request
      * @return RedirectResponse
      */

@@ -49,39 +49,6 @@ class UserService extends BaseService
     }
 
     /**
-     * @param array $data
-     * @return array{status: bool, message: string}
-     */
-    public function store(array $data): array
-    {
-        try {
-            DB::beginTransaction();
-
-            $this->userRepository->create([
-                'name' => $data['name'],
-                'email' => $data['email'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'password' => $data['password'],
-                'role' => $data['role'],
-                'status' => $data['status'] ?? UserStatus::Active->value
-            ]);
-
-            DB::commit();
-
-            return ['status' => true, 'message' => 'Tạo tài khoản thành công.'];
-        } catch (BusinessException $e) {
-            DB::rollBack();
-
-            return ['status' => false, 'message' => $e->getMessage()];
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Create user error: '.$e->getMessage());
-
-            return ['status' => false, 'message' => 'Có lỗi xảy ra khi tạo tài khoản.'];
-        }
-    }
-
-    /**
      * Cập nhật thông tin user. Mật khẩu để trống nghĩa là giữ nguyên.
      *
      * @param User $user

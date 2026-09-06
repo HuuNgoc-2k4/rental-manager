@@ -3,14 +3,6 @@
 @section('title', 'Người dùng')
 @section('subtitle', 'Quản lý tài khoản và vai trò: quản trị viên, chủ hộ, thành viên.')
 
-@section('page_actions')
-    <button type="button" onclick="window.openCreateUserModal()"
-            class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-100 hover:bg-indigo-700 transition-all">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-        Thêm tài khoản
-    </button>
-@endsection
-
 @section('content')
     @if($pendingUsers->isNotEmpty())
         <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
@@ -64,7 +56,7 @@
 
     <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="w-full min-w-[760px] text-sm">
                 <thead class="bg-slate-50 border-b border-slate-200">
                     <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         <th class="px-5 py-3 text-left">Người dùng</th>
@@ -92,14 +84,14 @@
                             </td>
                             <td class="px-5 py-4">
                                 @if($roleEnum = $item->roleEnum())
-                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $roleEnum->color() }}">
+                                    <span class="whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $roleEnum->color() }}">
                                         {{ $roleEnum->label() }}
                                     </span>
                                 @endif
                             </td>
                             <td class="px-5 py-4">
                                 @if($statusEnum = $item->statusEnum())
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $statusEnum->color() }}">
+                                    <span class="inline-flex whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $statusEnum->color() }}">
                                         <span class="w-1.5 h-1.5 rounded-full {{ $statusEnum->iconColor() }}"></span>
                                         {{ $statusEnum->label() }}
                                     </span>
@@ -121,15 +113,11 @@
         @endif
     </div>
 
-    @include('admin.users.partials.form-modal')
     @include('admin.users.partials.detail-drawer')
 @endsection
 
 @push('scripts')
 <script>
-    const createForm = document.getElementById('user-create-form');
-    const createModal = document.getElementById('user-create-modal');
-    const createPanel = document.getElementById('user-create-panel');
     const drawerOverlay = document.getElementById('user-drawer-overlay');
     const drawerPanel = document.getElementById('user-drawer-panel');
     const editForm = document.getElementById('user-edit-form');
@@ -137,22 +125,6 @@
 
     const updateUrlTemplate = @js(route('admin.users.update', ['user' => '__ID__']));
     const statusUrlTemplate = @js(route('admin.users.status', ['user' => '__ID__']));
-
-    window.openCreateUserModal = function () {
-        createModal.classList.add('opacity-0', 'pointer-events-none');
-        createPanel.classList.add('scale-95');
-        createModal.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            createModal.classList.remove('opacity-0', 'pointer-events-none');
-            createPanel.classList.remove('scale-95');
-        });
-    };
-
-    window.closeCreateUserModal = function () {
-        createModal.classList.add('opacity-0', 'pointer-events-none');
-        createPanel.classList.add('scale-95');
-        setTimeout(() => createModal.classList.add('hidden'), 300);
-    };
 
     window.openUserDrawer = function (row) {
         const data = row.dataset;
@@ -201,12 +173,6 @@
         });
     };
 
-    createForm.addEventListener('submit', () => window.showGlobalLoading());
     editForm.addEventListener('submit', () => window.showGlobalLoading());
-
-    // Mở lại modal tạo khi validate trả lỗi để người dùng không phải nhập lại từ đầu
-    @if($errors->any() && old('_form') === 'create')
-        window.openCreateUserModal();
-    @endif
 </script>
 @endpush

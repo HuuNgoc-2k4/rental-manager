@@ -44,32 +44,6 @@ class UserController extends Controller
 
     /**
      * @param Request $request
-     * @return RedirectResponse
-     */
-    public function store(Request $request)
-    {
-        // 1. Chỉ lấy field cần
-        $data = $request->only(['name', 'email', 'phone', 'password', 'role', 'status']);
-
-        // 2. Validate dữ liệu
-        $validator = $this->userValidator->storeValidator($data);
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
-
-        // 3. Gọi Service xử lý
-        $result = $this->userService->store($data);
-
-        // 4. Phản hồi
-        if (!$result['status']) {
-            return back()->with('error', $result['message'])->withInput();
-        }
-
-        return back()->with('success', $result['message']);
-    }
-
-    /**
-     * @param Request $request
      * @param User $user
      * @return RedirectResponse
      */

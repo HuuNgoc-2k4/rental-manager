@@ -12,22 +12,6 @@ class UserValidator
 {
     /**
      * @param array $input
-     * @return \Illuminate\Validation\Validator
-     */
-    public function storeValidator(array $input)
-    {
-        return Validator::make($input, [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['nullable', 'required_without:phone', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'required_without:email', 'regex:'.User::PHONE_REGEX, 'unique:users,phone'],
-            'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', Rule::in(UserRole::values())],
-            'status' => ['nullable', Rule::in(UserStatus::values())]
-        ], $this->messages());
-    }
-
-    /**
-     * @param array $input
      * @param User $user
      * @return \Illuminate\Validation\Validator
      */
@@ -78,7 +62,6 @@ class UserValidator
             'phone.required_without' => 'Vui lòng nhập email hoặc số điện thoại.',
             'phone.regex' => 'Số điện thoại phải gồm 10 số và bắt đầu bằng 0.',
             'phone.unique' => 'Số điện thoại này đã được sử dụng.',
-            'password.required' => 'Vui lòng nhập mật khẩu.',
             'password.min' => 'Mật khẩu tối thiểu 8 ký tự.',
             'role.required' => 'Vui lòng chọn vai trò.',
             'role.in' => 'Vai trò không hợp lệ.',

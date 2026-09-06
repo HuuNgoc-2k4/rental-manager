@@ -88,11 +88,6 @@
                     Đăng nhập
                 </button>
             </form>
-
-            <p class="mt-8 text-center text-xs text-slate-400 font-medium">
-                Là chủ hộ chưa có tài khoản?
-                <a href="{{ route('register') }}" class="text-indigo-600 font-bold hover:underline">Đăng ký</a>
-            </p>
         </div>
     </div>
 </div>

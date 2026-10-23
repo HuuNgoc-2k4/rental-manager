@@ -25,6 +25,11 @@
                 <i data-lucide="building-2" class="w-4 h-4 shrink-0"></i>
                 <span class="break-words min-w-0">Khu trọ & phòng</span>
             </a>
+            <a href="{{ route('manage.tenants.index') }}"
+               class="flex items-center gap-3 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors {{ request()->routeIs('manage.tenants.*') ? 'sidebar-item-active' : '' }}">
+                <i data-lucide="contact" class="w-4 h-4 shrink-0"></i>
+                <span class="break-words min-w-0">Khách thuê</span>
+            </a>
         @endcan
 
         @can('is-admin')

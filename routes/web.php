@@ -6,6 +6,8 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Manage\PropertyController;
 use App\Http\Controllers\Manage\RoomController;
+use App\Http\Controllers\Manage\TenantController;
+use App\Http\Controllers\TenantImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -17,6 +19,7 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');
+    Route::get('/tenants/{tenant}/id-image/{side}', [TenantImageController::class, 'show'])->whereIn('side', ['front', 'back'])->name('tenants.id-image');
     Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
 
     /**
@@ -41,6 +44,13 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
             Route::put('/{property}', [PropertyController::class, 'update'])->name('update');
             Route::delete('/{property}', [PropertyController::class, 'destroy'])->name('destroy');
             Route::post('/{property}/rooms', [RoomController::class, 'store'])->name('rooms.store');
+        });
+
+        Route::prefix('tenants')->name('tenants.')->group(function () {
+            Route::get('/', [TenantController::class, 'index'])->name('index');
+            Route::post('/', [TenantController::class, 'store'])->name('store');
+            Route::put('/{tenant}', [TenantController::class, 'update'])->name('update');
+            Route::delete('/{tenant}', [TenantController::class, 'destroy'])->name('destroy');
         });
 
         Route::prefix('rooms')->name('rooms.')->group(function () {

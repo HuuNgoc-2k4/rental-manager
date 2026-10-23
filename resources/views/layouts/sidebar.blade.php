@@ -19,7 +19,7 @@
         </a>
 
         {{-- Menu 8 module nghiệp vụ (khu trọ, phòng, khách thuê, hợp đồng, chốt số, hóa đơn, thu tiền, báo cáo)
-             thêm vào đây khi từng module hoàn thành — bọc trong @can('manage-rental'). --}}
+             thêm vào đây khi từng module hoàn thành — bọc trong @can('manage-rental') (chỉ admin). --}}
 
         @can('is-admin')
             <p class="px-5 pt-6 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hệ thống</p>

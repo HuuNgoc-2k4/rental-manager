@@ -59,16 +59,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Admin xem được dữ liệu của mọi khu trọ; chủ hộ chỉ khu của mình, thành viên chỉ phòng của mình.
-     *
-     * @return bool
-     */
-    public function canViewAllData(): bool
-    {
-        return $this->isAdmin();
-    }
-
-    /**
      * @return bool
      */
     public function isActive(): bool

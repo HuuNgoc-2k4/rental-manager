@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 class DashboardController extends Controller
 {
     /**
-     * Thành viên (khách thuê) xem trang riêng, admin/chủ hộ xem trang quản lý.
+     * Chủ hộ và thành viên (người thuê) xem cổng hộ thuê, admin (chủ nhà) xem trang quản lý.
      *
      * @return View
      */
@@ -16,7 +16,7 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->isMember()) {
+        if (!$user->isAdmin()) {
             return view('member.dashboard', compact('user'));
         }
 

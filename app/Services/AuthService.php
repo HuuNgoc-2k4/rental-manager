@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\User\UserStatus;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AuthService extends BaseService
 {
@@ -40,5 +41,25 @@ class AuthService extends BaseService
         }
 
         return ['status' => true, 'message' => 'Đăng nhập thành công!'];
+    }
+
+    /**
+     * Đổi mật khẩu của chính mình và gỡ cờ bắt đổi mật khẩu.
+     *
+     * @param User $user
+     * @param string $newPassword
+     * @return array{status: bool, message: string}
+     */
+    public function changePassword(User $user, string $newPassword): array
+    {
+        try {
+            $user->update(['password' => $newPassword, 'must_change_password' => false]);
+
+            return ['status' => true, 'message' => 'Đã đổi mật khẩu thành công.'];
+        } catch (\Exception $e) {
+            Log::error('Change password error: '.$e->getMessage());
+
+            return ['status' => false, 'message' => 'Có lỗi xảy ra khi đổi mật khẩu.'];
+        }
     }
 }

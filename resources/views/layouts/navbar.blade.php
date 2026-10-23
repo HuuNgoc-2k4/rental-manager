@@ -27,6 +27,9 @@
             <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
                 <img src="https://ui-avatars.com/api/?name={{ urlencode($currentUser->name) }}&background=4f46e5&color=fff" alt="Avatar">
             </div>
+            <a href="{{ route('password.edit') }}" class="text-slate-400 hover:text-indigo-600 transition-colors" aria-label="Đổi mật khẩu">
+                <i data-lucide="key-round" class="w-5 h-5"></i>
+            </a>
             <form action="{{ route('logout') }}" method="POST" id="logout-form" class="hidden">@csrf</form>
             <button type="button" onclick="window.confirmLogout()" class="text-slate-400 hover:text-rose-500 transition-colors" aria-label="Đăng xuất">
                 <i data-lucide="log-out" class="w-5 h-5"></i>

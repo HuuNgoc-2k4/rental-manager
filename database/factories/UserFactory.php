@@ -33,6 +33,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Member->value,
+            'must_change_password' => false,
             'status' => UserStatus::Active->value,
             'remember_token' => Str::random(10),
         ];
@@ -71,5 +72,10 @@ class UserFactory extends Factory
     public function blocked(): static
     {
         return $this->state(fn (array $attributes) => ['status' => UserStatus::Blocked->value]);
+    }
+
+    public function mustChangePassword(): static
+    {
+        return $this->state(fn (array $attributes) => ['must_change_password' => true]);
     }
 }

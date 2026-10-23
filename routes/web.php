@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Manage\PropertyController;
+use App\Http\Controllers\Manage\RoomController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -29,14 +31,28 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
     });
 
     /**
-     * Khu quản lý nhà trọ — admin + chủ hộ (các module 01-08 sẽ khai báo route ở đây)
+     * Khu quản lý nhà trọ — chỉ admin (chủ nhà)
      */
     Route::middleware('can:manage-rental')->prefix('manage')->name('manage.')->group(function () {
-        //
+        Route::prefix('properties')->name('properties.')->group(function () {
+            Route::get('/', [PropertyController::class, 'index'])->name('index');
+            Route::post('/', [PropertyController::class, 'store'])->name('store');
+            Route::get('/{property}', [PropertyController::class, 'show'])->name('show');
+            Route::put('/{property}', [PropertyController::class, 'update'])->name('update');
+            Route::delete('/{property}', [PropertyController::class, 'destroy'])->name('destroy');
+            Route::post('/{property}/rooms', [RoomController::class, 'store'])->name('rooms.store');
+        });
+
+        Route::prefix('rooms')->name('rooms.')->group(function () {
+            Route::put('/{room}', [RoomController::class, 'update'])->name('update');
+            Route::patch('/{room}/status', [RoomController::class, 'updateStatus'])->name('status');
+            Route::post('/{room}/meters/replace', [RoomController::class, 'replaceMeter'])->name('meters.replace');
+            Route::delete('/{room}', [RoomController::class, 'destroy'])->name('destroy');
+        });
     });
 
     /**
-     * Cổng thành viên — khách thuê xem hợp đồng + hóa đơn của mình
+     * Cổng hộ thuê — chủ hộ + thành viên xem phòng, hồ sơ của mình
      */
     Route::middleware('can:access-member-portal')->prefix('member')->name('member.')->group(function () {
         //

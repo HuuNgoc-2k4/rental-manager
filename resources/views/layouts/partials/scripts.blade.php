@@ -112,6 +112,56 @@
         }).then(r => { if (r.isConfirmed) submit(); });
     };
 
+    /**
+     * Modal / drawer chung: overlay có id, class hidden + opacity-0; drawer có thêm panel `[data-panel]` trượt theo translate-x-full.
+     * Overlay khai báo data-close-fn="closeActiveModal" (modal z-50) hoặc "closeActiveDrawer" (drawer, data-drawer-overlay) để ESC đóng được.
+     */
+    window.openOverlay = function (id) {
+        const overlay = document.getElementById(id);
+        if (!overlay) return;
+        overlay.classList.remove('hidden');
+        requestAnimationFrame(() => {
+            overlay.classList.remove('opacity-0');
+            overlay.querySelector('[data-panel]')?.classList.remove('translate-x-full', 'scale-95');
+        });
+    };
+
+    window.closeOverlay = function (id) {
+        const overlay = document.getElementById(id);
+        if (!overlay) return;
+        overlay.classList.add('opacity-0');
+        overlay.querySelector('[data-panel]')?.classList.add(overlay.hasAttribute('data-drawer-overlay') ? 'translate-x-full' : 'scale-95');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+    };
+
+    window.closeActiveModal = function () {
+        const open = document.querySelector('.fixed.inset-0.z-50:not(.hidden):not(.opacity-0)');
+        if (open) window.closeOverlay(open.id);
+    };
+
+    window.closeActiveDrawer = function () {
+        const open = document.querySelector('[data-drawer-overlay]:not(.hidden):not(.opacity-0)');
+        if (open) window.closeOverlay(open.id);
+    };
+
+    /** Xác nhận rồi submit form ẩn (xóa, khóa, duyệt...). */
+    window.confirmSubmit = function (formId, { title, html, confirmText = 'Xác nhận', danger = false }) {
+        const mixin = danger ? window.swalDanger : window.swalConfirm;
+        mixin.fire({
+            icon: danger ? 'warning' : 'question',
+            iconColor: danger ? '#e11d48' : '#4f46e5',
+            title,
+            html,
+            showCancelButton: true,
+            confirmButtonText: confirmText,
+            cancelButtonText: 'Hủy'
+        }).then(r => {
+            if (!r.isConfirmed) return;
+            window.showGlobalLoading();
+            document.getElementById(formId).submit();
+        });
+    };
+
     // Chặn wheel + phím ↑↓ làm đổi giá trị input số (gõ chỉ số điện nước rất dễ lệch vì cuộn trang)
     document.addEventListener('wheel', function () {
         if (document.activeElement.type === 'number') document.activeElement.blur();

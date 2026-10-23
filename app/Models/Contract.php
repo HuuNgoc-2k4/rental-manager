@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Contract\MemberApproval;
 use Database\Factories\ContractFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,5 +38,17 @@ class Contract extends Model
     public function contractTenants(): HasMany
     {
         return $this->hasMany(ContractTenant::class);
+    }
+
+    /**
+     * Người đang ở: đã duyệt và chưa rời đi.
+     *
+     * @return HasMany
+     */
+    public function residents(): HasMany
+    {
+        return $this->hasMany(ContractTenant::class)
+            ->whereNull('left_at')
+            ->where('approval_status', MemberApproval::Approved->value);
     }
 }

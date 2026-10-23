@@ -18,8 +18,14 @@
             <span class="break-words min-w-0">Tổng quan</span>
         </a>
 
-        {{-- Menu 8 module nghiệp vụ (khu trọ, phòng, khách thuê, hợp đồng, chốt số, hóa đơn, thu tiền, báo cáo)
-             thêm vào đây khi từng module hoàn thành — bọc trong @can('manage-rental') (chỉ admin). --}}
+        @can('manage-rental')
+            <p class="px-5 pt-6 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Quản lý</p>
+            <a href="{{ route('manage.properties.index') }}"
+               class="flex items-center gap-3 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors {{ request()->routeIs('manage.properties.*') ? 'sidebar-item-active' : '' }}">
+                <i data-lucide="building-2" class="w-4 h-4 shrink-0"></i>
+                <span class="break-words min-w-0">Khu trọ & phòng</span>
+            </a>
+        @endcan
 
         @can('is-admin')
             <p class="px-5 pt-6 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hệ thống</p>

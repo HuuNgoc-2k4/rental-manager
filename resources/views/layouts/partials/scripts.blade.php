@@ -140,6 +140,14 @@
         window.setImageField(field, URL.createObjectURL(e.target.files[0]), true);
     });
 
+    /** Hiện / ẩn mật khẩu trong ô nhập (nút con mắt cạnh ô password). */
+    window.togglePassword = function (inputId, button) {
+        const input = document.getElementById(inputId);
+        input.type = input.type === 'password' ? 'text' : 'password';
+        button.innerHTML = '<i data-lucide="' + (input.type === 'password' ? 'eye' : 'eye-off') + '" class="w-5 h-5"></i>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    };
+
     window.confirmLogout = function () {
         const submit = () => {
             window.showGlobalLoading();

@@ -10,6 +10,7 @@ use App\Http\Controllers\Manage\PropertyController;
 use App\Http\Controllers\Manage\RoomController;
 use App\Http\Controllers\Manage\TenantController;
 use App\Http\Controllers\Member\HouseholdController;
+use App\Http\Controllers\Member\ProfileController;
 use App\Http\Controllers\TenantImageController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,6 +68,8 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
             Route::get('/', [ApprovalController::class, 'index'])->name('index');
             Route::post('/members/{link}/approve', [ApprovalController::class, 'approveMember'])->name('members.approve');
             Route::post('/members/{link}/reject', [ApprovalController::class, 'rejectMember'])->name('members.reject');
+            Route::post('/declarations/{tenant}/verify', [ApprovalController::class, 'verifyDeclaration'])->name('declarations.verify');
+            Route::post('/declarations/{tenant}/return', [ApprovalController::class, 'returnDeclaration'])->name('declarations.return');
         });
 
         Route::delete('members/{link}', [ContractController::class, 'leave'])->name('members.leave');
@@ -83,8 +86,13 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
      * Cổng hộ thuê — chủ hộ + thành viên xem phòng, hồ sơ của mình
      */
     Route::middleware('can:access-member-portal')->prefix('member')->name('member.')->group(function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
         Route::middleware('can:manage-household')->prefix('household')->name('household.')->group(function () {
             Route::post('/members', [HouseholdController::class, 'storeMember'])->name('members.store');
+            Route::get('/members/{tenant}/edit', [ProfileController::class, 'editMember'])->name('members.edit');
+            Route::put('/members/{tenant}', [ProfileController::class, 'updateMember'])->name('members.update');
             Route::post('/members/{tenant}/account', [HouseholdController::class, 'issueAccount'])->name('members.account');
             Route::post('/members/{tenant}/reset-password', [HouseholdController::class, 'resetPassword'])->name('members.reset-password');
         });

@@ -18,6 +18,14 @@
             <span class="break-words min-w-0">Tổng quan</span>
         </a>
 
+        @can('access-member-portal')
+            <a href="{{ route('member.profile.edit') }}"
+               class="flex items-center gap-3 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors {{ request()->routeIs('member.profile.*') ? 'sidebar-item-active' : '' }}">
+                <i data-lucide="id-card" class="w-4 h-4 shrink-0"></i>
+                <span class="break-words min-w-0">Hồ sơ của tôi</span>
+            </a>
+        @endcan
+
         @can('manage-rental')
             <p class="px-5 pt-6 pb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Quản lý</p>
             <a href="{{ route('manage.properties.index') }}"

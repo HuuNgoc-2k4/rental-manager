@@ -23,7 +23,10 @@ class TenantService extends BaseService
     public const DISK = 'local';
 
     /** Các trường định danh bị khóa sau khi hồ sơ được xác minh. */
-    public const LOCKED_FIELDS = ['full_name', 'date_of_birth', 'id_number', 'id_issued_date', 'id_issued_place'];
+    public const LOCKED_FIELDS = ['full_name', 'date_of_birth', 'gender', 'id_number', 'id_issued_date', 'id_issued_place', 'permanent_address'];
+
+    /** Trường khách vẫn sửa được sau khi hồ sơ đã được xác minh. */
+    public const EDITABLE_WHEN_VERIFIED = ['email', 'occupation'];
 
     protected TenantRepositoryInterface $tenantRepository;
 
@@ -179,6 +182,57 @@ class TenantService extends BaseService
             Log::error('Delete tenant error: '.$e->getMessage());
 
             return ['status' => false, 'message' => 'Có lỗi xảy ra khi xóa hồ sơ khách.'];
+        }
+    }
+
+    /**
+     * Khai báo thông tin (khách tự khai hoặc chủ hộ khai hộ) rồi gửi duyệt. Người gọi tự kiểm quyền.
+     * - Đã Verified: chỉ sửa được email và nghề nghiệp, trường định danh và ảnh bị khóa.
+     * - Chưa Verified: phải đủ họ tên, ngày sinh, CCCD, thường trú và cả 2 ảnh → chuyển Submitted.
+     *
+     * @param Tenant $tenant
+     * @param array $data
+     * @param array $files
+     * @return array{status: bool, message: string}
+     */
+    public function declare(Tenant $tenant, array $data, array $files): array
+    {
+        try {
+            DB::beginTransaction();
+
+            if ($tenant->isVerified()) {
+                $this->tenantRepository->update($tenant, array_intersect_key($this->payload($data), array_flip(self::EDITABLE_WHEN_VERIFIED)));
+                DB::commit();
+
+                return ['status' => true, 'message' => 'Đã cập nhật thông tin liên hệ.'];
+            }
+
+            $payload = array_diff_key($this->payload($data), array_flip(['phone', 'note']));
+            $hasImages = ($tenant->id_front_path || ($files['id_front'] ?? null)) && ($tenant->id_back_path || ($files['id_back'] ?? null));
+
+            // Kiểm tra đủ hồ sơ TRƯỚC khi ghi file để không để lại ảnh mồ côi khi bị từ chối.
+            if (!$this->hasFullIdentity($payload) || !$hasImages) {
+                throw new BusinessException('Vui lòng khai đủ họ tên, ngày sinh, số CCCD, địa chỉ thường trú và tải ảnh CCCD hai mặt.', 'declaration_incomplete');
+            }
+
+            $this->tenantRepository->update($tenant, $payload + [
+                'info_status' => TenantInfoStatus::Submitted->value,
+                'info_reject_reason' => null
+            ]);
+            $this->storeImages($tenant, $files);
+
+            DB::commit();
+
+            return ['status' => true, 'message' => 'Đã gửi khai báo, chủ nhà sẽ xem xét.'];
+        } catch (BusinessException $e) {
+            DB::rollBack();
+
+            return ['status' => false, 'message' => $e->getMessage()];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Declare tenant error: '.$e->getMessage());
+
+            return ['status' => false, 'message' => 'Có lỗi xảy ra khi gửi khai báo.'];
         }
     }
 

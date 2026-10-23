@@ -31,6 +31,13 @@ interface TenantRepositoryInterface extends BaseRepositoryInterface
     public function getWithoutLiveHousehold(): Collection;
 
     /**
+     * Hồ sơ đã gửi khai báo, chờ admin duyệt.
+     *
+     * @return Collection
+     */
+    public function getSubmitted(): Collection;
+
+    /**
      * Hồ sơ đang gắn với một tài khoản.
      *
      * @param int $userId

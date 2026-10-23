@@ -18,6 +18,12 @@
 @endif
 
 @section('content')
+    @if($profile && in_array($profile->info_status, ['draft', 'rejected'], true))
+        <a href="{{ route('member.profile.edit') }}" class="block rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold p-4 mb-6 break-words">
+            {{ $profile->info_status === 'rejected' ? 'Khai báo của bạn bị trả lại, bấm để sửa và gửi lại.' : 'Bạn chưa khai báo thông tin cá nhân. Bấm để khai báo ngay.' }}
+        </a>
+    @endif
+
     @if(!$household)
         <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
             <div class="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">

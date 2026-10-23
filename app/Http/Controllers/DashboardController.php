@@ -11,6 +11,9 @@ class DashboardController extends Controller
     /**
      * @param HouseholdService $householdService
      */
+    /**
+     * @param HouseholdService $householdService
+     */
     public function __construct(protected HouseholdService $householdService) {}
 
     /**
@@ -23,7 +26,11 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         if (!$user->isAdmin()) {
-            return view('member.dashboard', ['user' => $user, 'household' => $this->householdService->getPortal($user)]);
+            return view('member.dashboard', [
+                'user' => $user,
+                'household' => $this->householdService->getPortal($user),
+                'profile' => $this->householdService->getOwnProfile($user)
+            ]);
         }
 
         return view('dashboard.index', compact('user'));

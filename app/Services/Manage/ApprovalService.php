@@ -4,12 +4,16 @@ namespace App\Services\Manage;
 
 use App\Enums\Contract\ContractStatus;
 use App\Enums\Contract\MemberApproval;
+use App\Enums\Tenant\TenantInfoStatus;
 use App\Exceptions\BusinessException;
 use App\Models\Contract;
 use App\Models\ContractTenant;
+use App\Models\Tenant;
+use App\Models\User;
 use App\Repositories\Interfaces\ContractRepositoryInterface;
 use App\Repositories\Interfaces\ContractTenantRepositoryInterface;
 use App\Repositories\Interfaces\RoomRepositoryInterface;
+use App\Repositories\Interfaces\TenantRepositoryInterface;
 use App\Services\BaseService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +21,19 @@ use Illuminate\Support\Facades\Log;
 
 class ApprovalService extends BaseService
 {
+    /**
+     * @param Contract $model
+     * @param ContractTenantRepositoryInterface $linkRepository
+     * @param ContractRepositoryInterface $contractRepository
+     * @param RoomRepositoryInterface $roomRepository
+     * @param TenantRepositoryInterface $tenantRepository
+     */
     public function __construct(
         Contract $model,
         protected ContractTenantRepositoryInterface $linkRepository,
         protected ContractRepositoryInterface $contractRepository,
-        protected RoomRepositoryInterface $roomRepository
+        protected RoomRepositoryInterface $roomRepository,
+        protected TenantRepositoryInterface $tenantRepository
     ) {
         parent::__construct($model);
     }
@@ -39,7 +51,77 @@ class ApprovalService extends BaseService
      */
     public function pendingCount(): int
     {
-        return $this->linkRepository->getPending()->count();
+        return $this->linkRepository->getPending()->count() + $this->tenantRepository->getSubmitted()->count();
+    }
+
+    /**
+     * Khai báo thông tin chờ duyệt.
+     *
+     * @return Collection
+     */
+    public function getSubmittedDeclarations(): Collection
+    {
+        return $this->tenantRepository->getSubmitted();
+    }
+
+    /**
+     * Xác minh khai báo: từ đây các trường định danh bị khóa.
+     *
+     * @param Tenant $tenant
+     * @param User $actor
+     * @return array{status: bool, message: string}
+     */
+    public function verifyDeclaration(Tenant $tenant, User $actor): array
+    {
+        try {
+            if (!TenantInfoStatus::isSubmitted($tenant->info_status)) {
+                throw new BusinessException('Khai báo này không còn ở trạng thái chờ duyệt.', 'not_submitted');
+            }
+
+            $this->tenantRepository->update($tenant, [
+                'info_status' => TenantInfoStatus::Verified->value,
+                'info_reject_reason' => null,
+                'info_verified_at' => now(),
+                'info_verified_by' => $actor->id
+            ]);
+
+            return ['status' => true, 'message' => "Đã xác minh thông tin của {$tenant->full_name}."];
+        } catch (BusinessException $e) {
+            return ['status' => false, 'message' => $e->getMessage()];
+        } catch (\Exception $e) {
+            Log::error('Verify declaration error: '.$e->getMessage());
+
+            return ['status' => false, 'message' => 'Có lỗi xảy ra khi xác minh khai báo.'];
+        }
+    }
+
+    /**
+     * Trả lại khai báo, bắt buộc có lý do để khách sửa và gửi lại.
+     *
+     * @param Tenant $tenant
+     * @param string $reason
+     * @return array{status: bool, message: string}
+     */
+    public function returnDeclaration(Tenant $tenant, string $reason): array
+    {
+        try {
+            if (!TenantInfoStatus::isSubmitted($tenant->info_status)) {
+                throw new BusinessException('Khai báo này không còn ở trạng thái chờ duyệt.', 'not_submitted');
+            }
+
+            $this->tenantRepository->update($tenant, [
+                'info_status' => TenantInfoStatus::Rejected->value,
+                'info_reject_reason' => $reason
+            ]);
+
+            return ['status' => true, 'message' => "Đã trả lại khai báo của {$tenant->full_name}."];
+        } catch (BusinessException $e) {
+            return ['status' => false, 'message' => $e->getMessage()];
+        } catch (\Exception $e) {
+            Log::error('Return declaration error: '.$e->getMessage());
+
+            return ['status' => false, 'message' => 'Có lỗi xảy ra khi trả lại khai báo.'];
+        }
     }
 
     /**

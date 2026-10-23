@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\Contract\ContractStatus;
+use App\Enums\Tenant\TenantInfoStatus;
 use App\Models\Tenant;
 use App\Repositories\Interfaces\TenantRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -73,5 +74,13 @@ class TenantRepository extends BaseRepository implements TenantRepositoryInterfa
                 ->whereHas('contract', fn ($c) => $c->where('status', ContractStatus::Active->value)))
             ->orderBy('full_name')
             ->get(['id', 'full_name', 'phone']);
+    }
+
+    /**
+     * @return Collection
+     */
+    public function getSubmitted(): Collection
+    {
+        return $this->newQuery()->where('info_status', TenantInfoStatus::Submitted->value)->orderBy('updated_at')->get();
     }
 }

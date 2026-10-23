@@ -15,6 +15,7 @@ use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Services\AccountService;
 use App\Services\BaseService;
 use App\Services\Manage\ContractService;
+use App\Services\Manage\TenantService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,16 @@ use Illuminate\Support\Facades\Log;
  */
 class HouseholdService extends BaseService
 {
+    /**
+     * @param Contract $model
+     * @param ContractTenantRepositoryInterface $linkRepository
+     * @param RoomRepositoryInterface $roomRepository
+     * @param TenantRepositoryInterface $tenantRepository
+     * @param UserRepositoryInterface $userRepository
+     * @param ContractService $contractService
+     * @param AccountService $accountService
+     * @param TenantService $tenantService
+     */
     public function __construct(
         Contract $model,
         protected ContractTenantRepositoryInterface $linkRepository,
@@ -33,7 +44,8 @@ class HouseholdService extends BaseService
         protected TenantRepositoryInterface $tenantRepository,
         protected UserRepositoryInterface $userRepository,
         protected ContractService $contractService,
-        protected AccountService $accountService
+        protected AccountService $accountService,
+        protected TenantService $tenantService
     ) {
         parent::__construct($model);
     }
@@ -124,6 +136,63 @@ class HouseholdService extends BaseService
             Log::error('Reset member password error: '.$e->getMessage());
 
             return ['status' => false, 'message' => 'Có lỗi xảy ra khi đặt lại mật khẩu.'];
+        }
+    }
+
+    /**
+     * Hồ sơ của chính user đăng nhập (null nếu tài khoản chưa gắn hồ sơ khách).
+     *
+     * @param User $user
+     * @return Tenant|null
+     */
+    public function getOwnProfile(User $user): ?Tenant
+    {
+        return $this->tenantRepository->findByUserId($user->id);
+    }
+
+    /**
+     * Người dùng tự khai báo hồ sơ của mình.
+     *
+     * @param Tenant $tenant hồ sơ của chính user (lấy từ getOwnProfile)
+     * @param array $data
+     * @param array $files
+     * @return array{status: bool, message: string}
+     */
+    public function declareOwn(Tenant $tenant, array $data, array $files): array
+    {
+        return $this->tenantService->declare($tenant, $data, $files);
+    }
+
+    /**
+     * Chủ hộ khai hộ thành viên: thành viên cùng hộ, chưa có tài khoản, chưa được xác minh.
+     * Sai hộ / đã có tài khoản / đã xác minh → 404 (hồ sơ đó không thuộc quyền chủ hộ).
+     *
+     * @param User $owner
+     * @param Tenant $tenant
+     * @param array $data
+     * @param array $files
+     * @return array{status: bool, message: string}
+     */
+    public function declareForMember(User $owner, Tenant $tenant, array $data, array $files): array
+    {
+        $this->assertCanDeclareForMember($owner, $tenant);
+
+        return $this->tenantService->declare($tenant, $data, $files);
+    }
+
+    /**
+     * @param User $owner
+     * @param Tenant $tenant
+     * @return void
+     *
+     * @throws ModelNotFoundException
+     */
+    public function assertCanDeclareForMember(User $owner, Tenant $tenant): void
+    {
+        $this->assertMemberOfMyHousehold($owner, $tenant);
+
+        if (!$this->tenantService->isDeclaredByOwner($owner, $tenant) || $tenant->isVerified()) {
+            throw (new ModelNotFoundException)->setModel(Tenant::class, [$tenant->id]);
         }
     }
 

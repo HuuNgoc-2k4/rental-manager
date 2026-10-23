@@ -49,7 +49,7 @@
     /** Style Swal dùng chung — khai báo 1 lần, mọi trang tái dùng qua window.swalConfirm. */
     window.baseSwalClasses = {
         popup: 'rounded-[2rem] p-4 shadow-2xl',
-        title: 'text-xl font-black text-slate-800',
+        title: 'text-xl font-bold text-slate-800',
         htmlContainer: 'text-sm font-medium text-slate-500',
         cancelButton: 'bg-slate-100 text-slate-600 rounded-xl px-6 py-3 font-bold hover:bg-slate-200 transition-all',
         input: 'rounded-xl border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 text-sm font-medium p-3 outline-none transition-all mt-4'
@@ -91,7 +91,34 @@
         }
         overlay.classList.add('opacity-0');
         sidebar.classList.add('-translate-x-full');
-        setTimeout(() => overlay.classList.add('hidden'), 300);
+        // Chỉ ẩn nếu chưa bị mở lại trong 300ms (bấm 2 lần nhanh) — tránh sidebar mở mà mất lớp phủ để đóng
+        setTimeout(() => { if (sidebar.classList.contains('-translate-x-full')) overlay.classList.add('hidden'); }, 300);
+    };
+
+    /** Dropdown tài khoản ở navbar — bấm ra ngoài thì đóng. */
+    window.toggleUserMenu = function (open = null) {
+        const panel = document.getElementById('user-menu-panel');
+        if (!panel) return;
+        panel.classList.toggle('hidden', open === null ? !panel.classList.contains('hidden') : !open);
+    };
+    document.addEventListener('click', function (e) {
+        const menu = document.getElementById('user-menu');
+        if (menu && !menu.contains(e.target)) window.toggleUserMenu(false);
+    });
+
+    /** Escape HTML cho chuỗi người nhập trước khi ghép vào innerHTML. */
+    window.escapeHtml = function (v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    };
+
+    /** Avatar chữ cái đầu — cùng bảng màu + thuật toán với partials/avatar.blade.php. */
+    window.avatarHtml = function (name, size = 'w-10 h-10 text-sm') {
+        const palette = ['bg-indigo-100 text-indigo-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700', 'bg-violet-100 text-violet-700'];
+        const words = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+        const initials = words.length ? (words[0][0] + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase() : '?';
+        const chars = Array.from(String(name ?? ''));
+        const sum = (chars.length ? chars : ['0']).reduce((s, c) => s + c.codePointAt(0), 0);
+        return '<span class="inline-flex items-center justify-center shrink-0 rounded-full font-bold ' + size + ' ' + palette[sum % palette.length] + '" aria-hidden="true">' + window.escapeHtml(initials) + '</span>';
     };
 
     window.confirmLogout = function () {
@@ -131,7 +158,7 @@
         if (!overlay) return;
         overlay.classList.add('opacity-0');
         overlay.querySelector('[data-panel]')?.classList.add(overlay.hasAttribute('data-drawer-overlay') ? 'translate-x-full' : 'scale-95');
-        setTimeout(() => overlay.classList.add('hidden'), 300);
+        setTimeout(() => { if (overlay.classList.contains('opacity-0')) overlay.classList.add('hidden'); }, 300);
     };
 
     window.closeActiveModal = function () {

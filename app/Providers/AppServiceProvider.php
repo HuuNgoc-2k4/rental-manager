@@ -22,8 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Badge số mục chờ duyệt ở sidebar (chỉ admin).
-        View::composer('layouts.sidebar', function ($view) {
+        // Badge số mục chờ duyệt (chỉ admin) — gắn vào layout để sidebar, navbar, thanh đáy dùng chung 1 query qua @include.
+        View::composer('layouts.app', function ($view) {
             $view->with('pendingApprovalCount', Auth::user()?->isAdmin() ? app(ApprovalService::class)->pendingCount() : 0);
         });
     }

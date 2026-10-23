@@ -8,14 +8,13 @@
         ['name' => 'Khu trọ', 'url' => route('manage.properties.index')],
         ['name' => $property->name, 'url' => '#']
     ];
-    $inp = 'w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all';
-    $lbl = 'block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2';
-    $tileColors = [
-        'vacant' => 'border-green-200 bg-green-50 hover:border-green-400',
-        'occupied' => 'border-indigo-200 bg-indigo-50 hover:border-indigo-400',
-        'maintenance' => 'border-amber-200 bg-amber-50 hover:border-amber-400'
+    // Giao diện theo trạng thái phòng: [viền ô, dải màu đầu ô, ô icon, icon]
+    $statusTheme = [
+        'vacant' => ['hover:border-emerald-300', 'bg-emerald-400', 'bg-emerald-50 text-emerald-600', 'door-open'],
+        'occupied' => ['hover:border-indigo-300', 'bg-indigo-500', 'bg-indigo-50 text-indigo-600', 'users'],
+        'maintenance' => ['hover:border-amber-300', 'bg-amber-400', 'bg-amber-50 text-amber-600', 'wrench']
     ];
-    $roomData = $rooms->mapWithKeys(function ($room) {
+    $roomData = $rooms->mapWithKeys(function ($room) use ($property) {
         $contract = $room->activeContract;
         $residents = $contract?->residents ?? collect();
         $owner = $residents->firstWhere('is_primary', true);
@@ -30,8 +29,11 @@
             'note' => $room->note,
             'status' => $room->status,
             'status_label' => \App\Enums\Property\RoomStatus::tryFrom($room->status)?->label(),
+            'status_color' => \App\Enums\Property\RoomStatus::tryFrom($room->status)?->color(),
+            'property_name' => $property->name,
             'has_contract' => (bool) $contract,
             'contract_id' => $contract?->id,
+            'start_date' => $contract?->start_date?->format('d/m/Y'),
             'links' => ($contract?->liveLinks ?? collect())->map(fn ($l) => [
                 'id' => $l->id,
                 'tenant_id' => $l->tenant_id,
@@ -40,6 +42,7 @@
                 'is_primary' => $l->is_primary,
                 'approval' => $l->approval_status,
                 'approval_label' => \App\Enums\Contract\MemberApproval::tryFrom($l->approval_status)?->label(),
+                'approval_color' => \App\Enums\Contract\MemberApproval::tryFrom($l->approval_status)?->color(),
                 'has_account' => (bool) $l->tenant?->user_id
             ])->values(),
             'owner_name' => $owner?->tenant?->full_name,
@@ -54,57 +57,95 @@
             ])->values()
         ]];
     });
+    $statusCounts = $rooms->countBy('status');
 @endphp
 
 @section('page_actions')
-    <button type="button" onclick="window.openOverlay('room-create-modal')"
-            class="min-h-[44px] px-5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2">
+    <button type="button" onclick="window.openOverlay('room-create-modal')" class="btn btn-primary flex-1 sm:flex-none">
         <i data-lucide="plus" class="w-4 h-4"></i> Thêm phòng
     </button>
     <form id="property-delete-form" method="POST" action="{{ route('manage.properties.destroy', $property) }}" class="hidden">@csrf @method('DELETE')</form>
     <button type="button" aria-label="Xóa khu"
             onclick="window.confirmSubmit('property-delete-form', { title: 'Xóa khu trọ?', html: '<p class=&quot;text-sm text-slate-600 break-words&quot;>Chỉ xóa được khi khu chưa có phòng nào.</p>', confirmText: 'Xóa khu', danger: true })"
-            class="min-h-[44px] w-11 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-500 transition-colors">
+            class="btn-icon bg-white border-2 border-slate-100 text-slate-400 hover:text-rose-500 hover:border-rose-100">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
     </button>
 @endsection
 
 @section('content')
-    <div class="flex flex-wrap gap-3 mb-4 text-[11px] font-bold">
+    {{-- Bộ lọc theo trạng thái: bấm thẻ để chỉ hiện phòng trạng thái đó --}}
+    <div class="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
+        <button type="button" data-room-filter="" onclick="window.filterRooms('')"
+                class="room-filter card p-2.5 sm:p-4 text-center lg:text-left min-h-[44px] transition-all ring-2 ring-indigo-500">
+            <p class="section-label text-[10px] sm:text-[11px] tracking-wide lg:tracking-widest">Tất cả</p>
+            <p class="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums mt-1">{{ $rooms->count() }}</p>
+        </button>
         @foreach($statuses as $st)
-            <span class="px-2.5 py-1 rounded-full ring-1 ring-inset {{ $st->color() }}">{{ $st->label() }}: {{ $rooms->where('status', $st->value)->count() }}</span>
+            <button type="button" data-room-filter="{{ $st->value }}" onclick="window.filterRooms('{{ $st->value }}')"
+                    class="room-filter card p-2.5 sm:p-4 text-center lg:text-left min-h-[44px] transition-all hover:border-slate-300">
+                <div class="flex items-center justify-center lg:justify-between gap-2">
+                    <p class="section-label text-[10px] sm:text-[11px] tracking-wide lg:tracking-widest break-words min-w-0">{{ $st->label() }}</p>
+                    <span class="hidden lg:flex w-8 h-8 rounded-lg items-center justify-center shrink-0 {{ $statusTheme[$st->value][2] }}">
+                        <i data-lucide="{{ $statusTheme[$st->value][3] }}" class="w-4 h-4"></i>
+                    </span>
+                </div>
+                <p class="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums mt-1">{{ $statusCounts[$st->value] ?? 0 }}</p>
+            </button>
         @endforeach
     </div>
 
     @forelse($floors as $floor => $floorRooms)
-        <div class="mb-6">
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                {{ $floor === 'none' ? 'Chưa phân tầng' : 'Tầng '.$floor }}
-            </p>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+        <section class="mb-8" data-floor>
+            <div class="flex items-center gap-3 mb-3">
+                <span class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    {{ $floor === 'none' ? '–' : $floor }}
+                </span>
+                <p class="text-sm font-bold text-slate-800">{{ $floor === 'none' ? 'Chưa phân tầng' : 'Tầng '.$floor }}</p>
+                <span class="text-xs font-bold text-slate-400">{{ $floorRooms->count() }} phòng</span>
+                <span class="flex-1 h-px bg-slate-200"></span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 @foreach($floorRooms as $room)
                     @php
                         $data = $roomData[$room->id];
+                        $theme = $statusTheme[$room->status] ?? $statusTheme['vacant'];
                     @endphp
-                    <button type="button" onclick="window.openRoomDrawer({{ $room->id }})"
-                            class="text-left min-h-[96px] rounded-2xl border-2 p-3 transition-colors {{ $tileColors[$room->status] ?? 'border-slate-200 bg-white' }}">
-                        <p class="text-lg font-black text-slate-800 break-words min-w-0">{{ $room->name }}</p>
-                        <p class="text-[11px] font-bold text-slate-600 break-words min-w-0 mt-1">
-                            {{ $data['owner_name'] ?? $data['status_label'] }}
-                        </p>
-                        <p class="text-[11px] font-medium text-slate-500 mt-1 whitespace-nowrap">
-                            {{ $data['residents'] }}/{{ $room->max_occupants }} người
-                        </p>
+                    <button type="button" onclick="window.openRoomDrawer({{ $room->id }})" data-room-status="{{ $room->status }}"
+                            class="group relative text-left card overflow-hidden flex flex-col hover:shadow-md transition-all {{ $theme[0] }}">
+                        <span class="h-1.5 w-full {{ $theme[1] }}"></span>
+                        <span class="p-3 sm:p-4 flex flex-col gap-2 flex-1">
+                            <span class="flex items-start justify-between gap-2">
+                                <span class="text-xl font-bold text-slate-900 break-words min-w-0 leading-tight">{{ $room->name }}</span>
+                                <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 {{ $theme[2] }}">
+                                    <i data-lucide="{{ $theme[3] }}" class="w-4 h-4"></i>
+                                </span>
+                            </span>
+                            <span class="text-xs font-bold break-words min-w-0 {{ $data['owner_name'] ? 'text-slate-700' : 'text-slate-400' }}">
+                                {{ $data['owner_name'] ?? $data['status_label'] }}
+                            </span>
+                            <span class="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pt-2 border-t border-slate-100">
+                                <span class="flex items-center gap-1 text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                                    <i data-lucide="user" class="w-3.5 h-3.5"></i>{{ $data['residents'] }}/{{ $room->max_occupants }}
+                                </span>
+                                <span class="text-[11px] font-bold text-slate-800 whitespace-nowrap tabular-nums">{{ number_format($room->base_rent, 0, ',', '.') }}đ</span>
+                            </span>
+                        </span>
                     </button>
                 @endforeach
             </div>
-        </div>
+        </section>
     @empty
-        <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
-            <p class="text-sm font-bold text-slate-700">Khu này chưa có phòng</p>
-            <p class="text-xs text-slate-500 font-medium mt-1">Bấm "Thêm phòng" để khai báo phòng và đồng hồ điện nước.</p>
+        <div class="card p-10 text-center">
+            <div class="w-16 h-16 rounded-3xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="door-closed" class="w-8 h-8 text-indigo-500"></i>
+            </div>
+            <p class="text-base font-bold text-slate-800">Khu này chưa có phòng</p>
+            <p class="text-sm text-slate-500 font-medium mt-1">Bấm "Thêm phòng" để khai báo phòng và đồng hồ điện nước.</p>
+            <button type="button" onclick="window.openOverlay('room-create-modal')" class="btn btn-primary mt-6"><i data-lucide="plus" class="w-4 h-4"></i> Thêm phòng</button>
         </div>
     @endforelse
+
+    <div id="room-filter-empty" class="hidden card p-8 text-center text-sm font-semibold text-slate-400">Không có phòng nào ở trạng thái này.</div>
 
     {{-- Forms ẩn: đặt NGOÀI drawer để không lồng form trong form --}}
     <form id="room-status-form" method="POST" class="hidden">@csrf @method('PATCH')<input type="hidden" name="status"></form>
@@ -115,231 +156,271 @@
 
     {{-- Drawer phòng --}}
     <div id="room-drawer" data-drawer-overlay data-close-fn="closeActiveDrawer" onclick="if (event.target === this) window.closeOverlay('room-drawer')"
-         class="hidden fixed inset-0 z-[100] bg-slate-900/40 opacity-0 transition-opacity duration-300">
-        <div data-panel class="absolute right-0 top-0 h-full w-full lg:w-[52vw] xl:w-[44vw] bg-white shadow-2xl z-[101] translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto">
-            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                <div class="min-w-0">
-                    <p id="room-drawer-status" class="text-[10px] font-black text-slate-400 uppercase tracking-widest"></p>
-                    <h3 id="room-drawer-title" class="text-lg font-black text-slate-800 break-words min-w-0"></h3>
+         class="hidden fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div data-panel class="absolute right-0 top-0 h-full w-full lg:w-[52vw] xl:w-[44vw] bg-slate-50 shadow-2xl z-[101] translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto">
+            <div class="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center gap-3 sticky top-0 bg-white z-10">
+                <span id="room-drawer-icon" class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"></span>
+                <div class="min-w-0 flex-1">
+                    <p id="room-drawer-status" class="text-[11px] font-bold text-slate-400 uppercase tracking-widest"></p>
+                    <h3 id="room-drawer-title" class="text-lg font-bold text-slate-900 break-words min-w-0"></h3>
                 </div>
-                <button type="button" onclick="window.closeOverlay('room-drawer')" aria-label="Đóng" class="w-11 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 shrink-0">
+                <button type="button" onclick="window.closeOverlay('room-drawer')" aria-label="Đóng" class="btn-icon -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div class="p-6 space-y-6">
-                <div id="room-household" class="rounded-xl bg-slate-50 p-4 text-sm"></div>
-                <div id="room-links" class="space-y-2"></div>
-                <div id="room-rent-actions" class="flex flex-col sm:flex-row gap-3"></div>
-
-                <form id="room-edit-form" method="POST" onsubmit="window.showGlobalLoading()" class="space-y-4">
-                    @csrf @method('PUT')
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="room-name" class="{{ $lbl }}">Tên / số phòng</label>
-                            <input type="text" id="room-name" name="name" required maxlength="50" class="{{ $inp }}">
-                        </div>
-                        <div>
-                            <label for="room-floor" class="{{ $lbl }}">Tầng</label>
-                            <input type="number" id="room-floor" name="floor" class="{{ $inp }}">
-                        </div>
-                        <div>
-                            <label for="room-area" class="{{ $lbl }}">Diện tích (m²)</label>
-                            <input type="number" step="0.01" id="room-area" name="area" class="{{ $inp }}">
-                        </div>
-                        <div>
-                            <label for="room-max" class="{{ $lbl }}">Số người tối đa</label>
-                            <input type="number" id="room-max" name="max_occupants" required min="1" class="{{ $inp }}">
-                        </div>
+            <div class="p-4 sm:p-6 space-y-4 pb-safe">
+                {{-- Hộ đang thuê --}}
+                <div class="card p-4 sm:p-5 space-y-4">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="home" class="w-4 h-4 text-indigo-500"></i>
+                        <p class="section-label">Hộ đang thuê</p>
                     </div>
-                    <div>
-                        <label for="room-rent" class="{{ $lbl }}">Giá thuê mặc định (đ/tháng)</label>
-                        <input type="number" id="room-rent" name="base_rent" required min="0" class="{{ $inp }}">
-                    </div>
-                    <div>
-                        <label for="room-note" class="{{ $lbl }}">Ghi chú</label>
-                        <textarea id="room-note" name="note" rows="2" maxlength="2000" class="{{ $inp }}"></textarea>
-                    </div>
-                    <button type="submit" class="w-full min-h-[44px] bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Lưu phòng</button>
-                </form>
-
-                <div>
-                    <p class="{{ $lbl }}">Đồng hồ đang dùng</p>
-                    <div id="room-meters" class="space-y-2"></div>
+                    <div id="room-household"></div>
+                    <div id="room-links" class="space-y-2"></div>
+                    <div id="room-rent-actions" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
                 </div>
 
-                <div id="room-manual-actions" class="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100"></div>
+                {{-- Thông tin phòng --}}
+                <form id="room-edit-form" method="POST" onsubmit="window.showGlobalLoading()" class="card p-4 sm:p-5 space-y-4">
+                    @csrf @method('PUT')
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="settings-2" class="w-4 h-4 text-indigo-500"></i>
+                        <p class="section-label">Thông tin phòng</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                            <label for="room-name" class="form-label">Tên / số phòng</label>
+                            <input type="text" id="room-name" name="name" required maxlength="50" class="form-input">
+                        </div>
+                        <div>
+                            <label for="room-floor" class="form-label">Tầng</label>
+                            <input type="number" id="room-floor" name="floor" class="form-input">
+                        </div>
+                        <div>
+                            <label for="room-area" class="form-label">Diện tích (m²)</label>
+                            <input type="number" step="0.01" id="room-area" name="area" class="form-input">
+                        </div>
+                        <div>
+                            <label for="room-max" class="form-label">Số người tối đa</label>
+                            <input type="number" id="room-max" name="max_occupants" required min="1" class="form-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="room-rent" class="form-label">Giá thuê mặc định (đ/tháng)</label>
+                        <input type="number" id="room-rent" name="base_rent" required min="0" class="form-input">
+                    </div>
+                    <div>
+                        <label for="room-note" class="form-label">Ghi chú</label>
+                        <textarea id="room-note" name="note" rows="2" maxlength="2000" class="form-input"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-full"><i data-lucide="save" class="w-4 h-4"></i> Lưu phòng</button>
+                </form>
+
+                {{-- Đồng hồ --}}
+                <div class="card p-4 sm:p-5 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="gauge" class="w-4 h-4 text-indigo-500"></i>
+                        <p class="section-label">Đồng hồ đang dùng</p>
+                    </div>
+                    <div id="room-meters" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                </div>
+
+                {{-- Thao tác khác --}}
+                <div class="card p-4 sm:p-5 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-500"></i>
+                        <p class="section-label">Thao tác khác</p>
+                    </div>
+                    <div id="room-manual-actions" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                </div>
             </div>
         </div>
     </div>
 
     {{-- Modal thêm phòng --}}
     <div id="room-create-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('room-create-modal')"
-         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center sm:p-4">
         <form method="POST" action="{{ route('manage.properties.rooms.store', $property) }}" data-panel onsubmit="window.showGlobalLoading()"
-              class="bg-white rounded-2xl w-full max-w-xl max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+              class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-xl max-h-[92dvh] overflow-y-auto scale-95 transition-transform duration-300 pb-safe">
             @csrf
-            <h3 class="text-lg font-black text-slate-800">Thêm phòng</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label for="new-name" class="{{ $lbl }}">Tên / số phòng</label>
-                    <input type="text" id="new-name" name="name" required maxlength="50" value="{{ old('name') }}" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="new-floor" class="{{ $lbl }}">Tầng</label>
-                    <input type="number" id="new-floor" name="floor" value="{{ old('floor') }}" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="new-area" class="{{ $lbl }}">Diện tích (m²)</label>
-                    <input type="number" step="0.01" id="new-area" name="area" value="{{ old('area') }}" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="new-max" class="{{ $lbl }}">Số người tối đa</label>
-                    <input type="number" id="new-max" name="max_occupants" required min="1" value="{{ old('max_occupants', 2) }}" class="{{ $inp }}">
-                </div>
-            </div>
-            <div>
-                <label for="new-rent" class="{{ $lbl }}">Giá thuê mặc định (đ/tháng)</label>
-                <input type="number" id="new-rent" name="base_rent" required min="0" value="{{ old('base_rent') }}" class="{{ $inp }}">
-            </div>
-
-            @foreach(\App\Enums\Meter\MeterType::cases() as $type)
-                <fieldset class="rounded-xl border border-slate-200 p-4">
-                    <legend class="px-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Đồng hồ {{ $type->label() }}</legend>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label for="new-{{ $type->value }}-int" class="{{ $lbl }}">Chữ số nguyên</label>
-                            <input type="number" id="new-{{ $type->value }}-int" name="{{ $type->value }}_integer_digits" required min="1" max="10" value="{{ old($type->value.'_integer_digits', 5) }}" class="{{ $inp }}">
-                        </div>
-                        <div>
-                            <label for="new-{{ $type->value }}-dec" class="{{ $lbl }}">Chữ số thập phân</label>
-                            <input type="number" id="new-{{ $type->value }}-dec" name="{{ $type->value }}_decimal_digits" required min="0" max="3" value="{{ old($type->value.'_decimal_digits', 0) }}" class="{{ $inp }}">
-                        </div>
-                        <div>
-                            <label for="new-{{ $type->value }}-init" class="{{ $lbl }}">Chỉ số đầu</label>
-                            <input type="number" step="any" id="new-{{ $type->value }}-init" name="{{ $type->value }}_initial_reading" required min="0" value="{{ old($type->value.'_initial_reading', 0) }}" class="{{ $inp }}">
-                        </div>
+            @include('partials.modal-header', ['modalId' => 'room-create-modal', 'icon' => 'door-closed', 'title' => 'Thêm phòng'])
+            <div class="p-5 sm:p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                        <label for="new-name" class="form-label">Tên / số phòng</label>
+                        <input type="text" id="new-name" name="name" required maxlength="50" value="{{ old('name') }}" placeholder="VD: 101" class="form-input">
                     </div>
-                </fieldset>
-            @endforeach
+                    <div>
+                        <label for="new-floor" class="form-label">Tầng</label>
+                        <input type="number" id="new-floor" name="floor" value="{{ old('floor') }}" class="form-input">
+                    </div>
+                    <div>
+                        <label for="new-area" class="form-label">Diện tích (m²)</label>
+                        <input type="number" step="0.01" id="new-area" name="area" value="{{ old('area') }}" class="form-input">
+                    </div>
+                    <div>
+                        <label for="new-max" class="form-label">Số người tối đa</label>
+                        <input type="number" id="new-max" name="max_occupants" required min="1" value="{{ old('max_occupants', 2) }}" class="form-input">
+                    </div>
+                </div>
+                <div>
+                    <label for="new-rent" class="form-label">Giá thuê mặc định (đ/tháng)</label>
+                    <input type="number" id="new-rent" name="base_rent" required min="0" value="{{ old('base_rent') }}" class="form-input">
+                </div>
 
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="window.closeOverlay('room-create-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
-                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Thêm phòng</button>
+                @foreach(\App\Enums\Meter\MeterType::cases() as $type)
+                    <fieldset class="rounded-2xl border-2 border-slate-100 p-4">
+                        <legend class="px-2 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                            <i data-lucide="{{ $type === \App\Enums\Meter\MeterType::Electric ? 'zap' : 'droplet' }}" class="w-3.5 h-3.5 {{ $type === \App\Enums\Meter\MeterType::Electric ? 'text-amber-500' : 'text-sky-500' }}"></i>
+                            Đồng hồ {{ $type->label() }}
+                        </legend>
+                        <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                            <div>
+                                <label for="new-{{ $type->value }}-int" class="form-label">Số nguyên</label>
+                                <input type="number" id="new-{{ $type->value }}-int" name="{{ $type->value }}_integer_digits" required min="1" max="10" value="{{ old($type->value.'_integer_digits', 5) }}" class="form-input">
+                            </div>
+                            <div>
+                                <label for="new-{{ $type->value }}-dec" class="form-label">Số lẻ</label>
+                                <input type="number" id="new-{{ $type->value }}-dec" name="{{ $type->value }}_decimal_digits" required min="0" max="3" value="{{ old($type->value.'_decimal_digits', 0) }}" class="form-input">
+                            </div>
+                            <div>
+                                <label for="new-{{ $type->value }}-init" class="form-label">Chỉ số đầu</label>
+                                <input type="number" step="any" id="new-{{ $type->value }}-init" name="{{ $type->value }}_initial_reading" required min="0" value="{{ old($type->value.'_initial_reading', 0) }}" class="form-input">
+                            </div>
+                        </div>
+                    </fieldset>
+                @endforeach
+            </div>
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                <button type="button" onclick="window.closeOverlay('room-create-modal')" class="btn btn-secondary">Đóng</button>
+                <button type="submit" class="btn btn-primary"><i data-lucide="plus" class="w-4 h-4"></i> Thêm phòng</button>
             </div>
         </form>
     </div>
 
     {{-- Modal cho thuê phòng --}}
     <div id="rent-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('rent-modal')"
-         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center sm:p-4">
         <form id="rent-form" method="POST" data-panel onsubmit="window.showGlobalLoading()"
-              class="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+              class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92dvh] overflow-y-auto scale-95 transition-transform duration-300 pb-safe">
             @csrf
-            <h3 id="rent-title" class="text-lg font-black text-slate-800">Cho thuê phòng</h3>
-            <div>
-                <label for="rent-tenant" class="{{ $lbl }}">Chọn khách có sẵn</label>
-                <select id="rent-tenant" name="tenant_id" onchange="window.toggleNewTenant()" class="{{ $inp }}">
-                    <option value="">— Tạo khách mới —</option>
-                    @foreach($availableTenants as $t)
-                        <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
-                    @endforeach
-                </select>
+            @include('partials.modal-header', ['modalId' => 'rent-modal', 'icon' => 'key-square', 'title' => 'Cho thuê phòng', 'titleId' => 'rent-title'])
+            <div class="p-5 sm:p-6 space-y-4">
+                <div>
+                    <label for="rent-tenant" class="form-label">Chủ hộ</label>
+                    <select id="rent-tenant" name="tenant_id" onchange="window.toggleNewTenant()" class="form-input">
+                        <option value="">— Tạo khách mới —</option>
+                        @foreach($availableTenants as $t)
+                            <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div id="rent-new-tenant" class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-slate-50 p-4">
+                    <div>
+                        <label for="rent-name" class="form-label">Họ và tên khách mới</label>
+                        <input type="text" id="rent-name" name="full_name" maxlength="255" class="form-input bg-white">
+                    </div>
+                    <div>
+                        <label for="rent-phone" class="form-label">Số điện thoại</label>
+                        <input type="text" id="rent-phone" name="phone" inputmode="numeric" class="form-input bg-white">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="rent-start" class="form-label">Ngày vào ở</label>
+                        <input type="date" id="rent-start" name="start_date" required value="{{ now()->toDateString() }}" class="form-input">
+                    </div>
+                    <div>
+                        <label for="rent-end" class="form-label">Hết hạn dự kiến</label>
+                        <input type="date" id="rent-end" name="end_date" class="form-input">
+                    </div>
+                </div>
+                <label class="flex items-start gap-3 rounded-2xl border-2 border-indigo-100 bg-indigo-50/50 p-4 text-sm font-medium text-slate-600 cursor-pointer">
+                    <input type="checkbox" name="issue_account" value="1" checked class="mt-0.5 w-5 h-5 rounded accent-indigo-600 shrink-0">
+                    <span class="break-words min-w-0">
+                        <span class="block font-bold text-slate-800">Cấp tài khoản cho chủ hộ</span>
+                        Cần số điện thoại. Hệ thống hiện mật khẩu tạm đúng một lần.
+                    </span>
+                </label>
             </div>
-            <div id="rent-new-tenant" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label for="rent-name" class="{{ $lbl }}">Họ và tên khách mới</label>
-                    <input type="text" id="rent-name" name="full_name" maxlength="255" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="rent-phone" class="{{ $lbl }}">Số điện thoại</label>
-                    <input type="text" id="rent-phone" name="phone" inputmode="numeric" class="{{ $inp }}">
-                </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label for="rent-start" class="{{ $lbl }}">Ngày vào ở</label>
-                    <input type="date" id="rent-start" name="start_date" required value="{{ now()->toDateString() }}" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="rent-end" class="{{ $lbl }}">Hết hạn dự kiến</label>
-                    <input type="date" id="rent-end" name="end_date" class="{{ $inp }}">
-                </div>
-            </div>
-            <label class="flex items-start gap-3 text-sm font-medium text-slate-600 min-h-[44px]">
-                <input type="checkbox" name="issue_account" value="1" checked class="mt-1 w-5 h-5 rounded">
-                <span class="break-words min-w-0">Cấp tài khoản cho chủ hộ (cần số điện thoại, hệ thống sẽ hiện mật khẩu tạm một lần)</span>
-            </label>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="window.closeOverlay('rent-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
-                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Cho thuê</button>
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                <button type="button" onclick="window.closeOverlay('rent-modal')" class="btn btn-secondary">Đóng</button>
+                <button type="submit" class="btn btn-primary"><i data-lucide="check" class="w-4 h-4"></i> Cho thuê</button>
             </div>
         </form>
     </div>
 
     {{-- Modal thêm người ở cùng --}}
     <div id="member-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('member-modal')"
-         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center sm:p-4">
         <form id="member-form" method="POST" data-panel onsubmit="window.showGlobalLoading()"
-              class="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+              class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92dvh] overflow-y-auto scale-95 transition-transform duration-300 pb-safe">
             @csrf
-            <h3 class="text-lg font-black text-slate-800">Thêm người ở cùng</h3>
-            <div>
-                <label for="member-tenant" class="{{ $lbl }}">Chọn khách có sẵn</label>
-                <select id="member-tenant" name="tenant_id" class="{{ $inp }}">
-                    <option value="">— Tạo người mới —</option>
-                    @foreach($availableTenants as $t)
-                        <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            @include('partials.modal-header', ['modalId' => 'member-modal', 'icon' => 'user-plus', 'title' => 'Thêm người ở cùng'])
+            <div class="p-5 sm:p-6 space-y-4">
                 <div>
-                    <label for="member-name" class="{{ $lbl }}">Họ và tên người mới</label>
-                    <input type="text" id="member-name" name="full_name" maxlength="255" class="{{ $inp }}">
+                    <label for="member-tenant" class="form-label">Chọn khách có sẵn</label>
+                    <select id="member-tenant" name="tenant_id" class="form-input">
+                        <option value="">— Tạo người mới —</option>
+                        @foreach($availableTenants as $t)
+                            <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
+                        @endforeach
+                    </select>
                 </div>
-                <div>
-                    <label for="member-phone" class="{{ $lbl }}">Số điện thoại</label>
-                    <input type="text" id="member-phone" name="phone" inputmode="numeric" class="{{ $inp }}">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-slate-50 p-4">
+                    <div>
+                        <label for="member-name" class="form-label">Họ và tên người mới</label>
+                        <input type="text" id="member-name" name="full_name" maxlength="255" class="form-input bg-white">
+                    </div>
+                    <div>
+                        <label for="member-phone" class="form-label">Số điện thoại</label>
+                        <input type="text" id="member-phone" name="phone" inputmode="numeric" class="form-input bg-white">
+                    </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="window.closeOverlay('member-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
-                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Thêm</button>
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                <button type="button" onclick="window.closeOverlay('member-modal')" class="btn btn-secondary">Đóng</button>
+                <button type="submit" class="btn btn-primary"><i data-lucide="user-plus" class="w-4 h-4"></i> Thêm</button>
             </div>
         </form>
     </div>
 
     {{-- Modal thay đồng hồ --}}
     <div id="meter-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('meter-modal')"
-         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 flex items-end sm:items-center justify-center sm:p-4">
         <form id="meter-form" method="POST" data-panel onsubmit="window.showGlobalLoading()"
-              class="bg-white rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+              class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[92dvh] overflow-y-auto scale-95 transition-transform duration-300 pb-safe">
             @csrf
             <input type="hidden" name="type" id="meter-type">
-            <h3 id="meter-modal-title" class="text-lg font-black text-slate-800">Thay đồng hồ</h3>
-            <p class="text-xs text-slate-500 font-medium">Đồng hồ cũ được đóng lại theo ngày thay; đồng hồ mới bắt đầu từ chỉ số đầu bạn nhập.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label for="meter-int" class="{{ $lbl }}">Chữ số nguyên</label>
-                    <input type="number" id="meter-int" name="integer_digits" required min="1" max="10" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="meter-dec" class="{{ $lbl }}">Chữ số thập phân</label>
-                    <input type="number" id="meter-dec" name="decimal_digits" required min="0" max="3" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="meter-init" class="{{ $lbl }}">Chỉ số đầu</label>
-                    <input type="number" step="any" id="meter-init" name="initial_reading" required min="0" value="0" class="{{ $inp }}">
-                </div>
-                <div>
-                    <label for="meter-date" class="{{ $lbl }}">Ngày thay</label>
-                    <input type="date" id="meter-date" name="replaced_at" required max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}" class="{{ $inp }}">
+            @include('partials.modal-header', ['modalId' => 'meter-modal', 'icon' => 'gauge', 'title' => 'Thay đồng hồ', 'titleId' => 'meter-modal-title', 'tone' => 'bg-amber-50 text-amber-600'])
+            <div class="p-5 sm:p-6 space-y-4">
+                <p class="text-xs text-slate-500 font-medium rounded-xl bg-slate-50 p-3 flex gap-2">
+                    <i data-lucide="info" class="w-4 h-4 shrink-0 text-slate-400"></i>
+                    Đồng hồ cũ được đóng lại theo ngày thay; đồng hồ mới bắt đầu từ chỉ số đầu bạn nhập.
+                </p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="meter-int" class="form-label">Chữ số nguyên</label>
+                        <input type="number" id="meter-int" name="integer_digits" required min="1" max="10" class="form-input">
+                    </div>
+                    <div>
+                        <label for="meter-dec" class="form-label">Chữ số thập phân</label>
+                        <input type="number" id="meter-dec" name="decimal_digits" required min="0" max="3" class="form-input">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="meter-init" class="form-label">Chỉ số đầu</label>
+                        <input type="number" step="any" id="meter-init" name="initial_reading" required min="0" value="0" class="form-input">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label for="meter-date" class="form-label">Ngày thay</label>
+                        <input type="date" id="meter-date" name="replaced_at" required max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}" class="form-input">
+                    </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="window.closeOverlay('meter-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
-                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Thay đồng hồ</button>
+            <div class="px-5 sm:px-6 py-4 border-t border-slate-100 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                <button type="button" onclick="window.closeOverlay('meter-modal')" class="btn btn-secondary">Đóng</button>
+                <button type="submit" class="btn btn-primary"><i data-lucide="refresh-cw" class="w-4 h-4"></i> Thay đồng hồ</button>
             </div>
         </form>
     </div>
@@ -359,60 +440,103 @@
         leave: @js(route('manage.members.leave', ['link' => '__ID__'])),
         account: @js(route('manage.tenants.account', ['tenant' => '__ID__']))
     };
+    const statusTheme = @json(collect($statusTheme)->map(fn ($t) => ['tone' => $t[2], 'icon' => $t[3]]));
+    const meterTheme = { electric: ['zap', 'bg-amber-50 text-amber-600'], water: ['droplet', 'bg-sky-50 text-sky-600'] };
     let currentRoomId = null;
 
-    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    const esc = window.escapeHtml;
     const fill = (id, value) => { document.getElementById(id).value = value ?? ''; };
+    const icon = (name, cls = 'w-4 h-4') => '<i data-lucide="' + name + '" class="' + cls + '"></i>';
+    const actionBtn = (onclick, cls, iconName, label) => '<button type="button" onclick="' + onclick + '" class="btn ' + cls + '">' + icon(iconName) + label + '</button>';
+
+    /** Lọc ô phòng theo trạng thái; ẩn cả tầng không còn phòng nào khớp. */
+    window.filterRooms = function (status) {
+        document.querySelectorAll('.room-filter').forEach(btn => {
+            const active = btn.dataset.roomFilter === status;
+            btn.classList.toggle('ring-2', active);
+            btn.classList.toggle('ring-indigo-500', active);
+        });
+        let visibleTotal = 0;
+        document.querySelectorAll('[data-floor]').forEach(section => {
+            let visible = 0;
+            section.querySelectorAll('[data-room-status]').forEach(tile => {
+                const show = !status || tile.dataset.roomStatus === status;
+                tile.classList.toggle('hidden', !show);
+                if (show) visible++;
+            });
+            section.classList.toggle('hidden', visible === 0);
+            visibleTotal += visible;
+        });
+        document.getElementById('room-filter-empty')?.classList.toggle('hidden', visibleTotal > 0 || !document.querySelector('[data-floor]'));
+    };
 
     window.openRoomDrawer = function (id) {
         const r = rooms[id];
+        const theme = statusTheme[r.status] ?? statusTheme.vacant;
         currentRoomId = id;
 
+        const drawerIcon = document.getElementById('room-drawer-icon');
+        drawerIcon.className = 'w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ' + theme.tone;
+        drawerIcon.innerHTML = icon(theme.icon, 'w-5 h-5');
         document.getElementById('room-drawer-title').textContent = 'Phòng ' + r.name;
-        document.getElementById('room-drawer-status').textContent = r.status_label;
+        document.getElementById('room-drawer-status').textContent = r.status_label + ' · ' + r.property_name + (r.floor ? ' · Tầng ' + r.floor : '');
+
+        // Hộ đang thuê: chủ hộ + thanh số người / tối đa
+        const percent = Math.min(100, Math.round(r.residents * 100 / Math.max(r.max_occupants, 1)));
         document.getElementById('room-household').innerHTML = r.has_contract
-            ? '<p class="font-bold text-slate-800 break-words">Chủ hộ: ' + esc(r.owner_name ?? '—') + '</p><p class="text-xs text-slate-500 mt-1">' + r.residents + '/' + r.max_occupants + ' người đang ở</p>'
-            : '<p class="font-bold text-slate-600">Chưa có hộ thuê</p>';
+            ? '<div class="flex items-center justify-between gap-3">'
+              + '<div class="min-w-0"><p class="text-base font-bold text-slate-900 break-words">' + esc(r.owner_name ?? '—') + '</p>'
+              + '<p class="text-xs text-slate-500 font-semibold mt-0.5">Chủ hộ · vào ở từ ' + esc(r.start_date) + '</p></div>'
+              + '<p class="text-sm font-bold text-slate-900 whitespace-nowrap tabular-nums">' + r.residents + '<span class="text-slate-400">/' + r.max_occupants + ' người</span></p></div>'
+              + '<div class="h-2 rounded-full bg-slate-100 mt-3 overflow-hidden"><div class="h-full rounded-full bg-indigo-500" style="width:' + percent + '%"></div></div>'
+            : '<div class="flex items-center gap-3 rounded-xl bg-slate-50 p-4">' + icon(r.status === 'maintenance' ? 'wrench' : 'door-open', 'w-5 h-5 text-slate-400')
+              + '<p class="text-sm font-bold text-slate-600">' + (r.status === 'maintenance' ? 'Phòng đang sửa, chưa cho thuê được' : 'Phòng đang trống') + '</p></div>';
+
+        document.getElementById('room-links').innerHTML = r.links.map(l =>
+            '<div class="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">'
+            + '<div class="flex items-center gap-3 min-w-0 flex-1">' + window.avatarHtml(l.name, 'w-10 h-10 text-xs')
+            + '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 break-words">' + esc(l.name)
+            + (l.is_primary ? ' <span class="badge ml-1 bg-indigo-50 text-indigo-700 ring-indigo-600/20">Chủ hộ</span>' : '') + '</p>'
+            + '<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[11px] font-semibold text-slate-500">'
+            + '<span class="flex items-center gap-1">' + icon('phone', 'w-3 h-3') + esc(l.phone ?? 'Chưa có SĐT') + '</span>'
+            + '<span class="badge ' + l.approval_color + '">' + esc(l.approval_label) + '</span>'
+            + (l.has_account ? '<span class="badge bg-emerald-50 text-emerald-700 ring-emerald-600/20">' + icon('shield-check', 'w-3 h-3') + 'Có tài khoản</span>' : '')
+            + '</div></div></div>'
+            + '<div class="flex gap-2 shrink-0">'
+            + (l.approval === 'approved' && !l.has_account && l.phone ? actionBtn('window.issueAccount(' + l.tenant_id + ')', 'btn-soft flex-1 px-4', 'key-round', 'Cấp TK') : '')
+            + (!l.is_primary ? actionBtn('window.leaveRoom(' + l.id + ')', 'btn-secondary flex-1 px-4', 'log-out', 'Rời đi') : '')
+            + '</div></div>'
+        ).join('');
+
+        document.getElementById('room-rent-actions').innerHTML = !r.has_contract && r.status === 'vacant'
+            ? '<button type="button" onclick="window.openRentModal()" class="btn btn-primary sm:col-span-2">' + icon('key-square') + 'Cho thuê phòng</button>'
+            : (r.has_contract
+                ? actionBtn('window.openMemberModal()', 'btn-soft', 'user-plus', 'Thêm người ở cùng')
+                  + actionBtn('window.checkoutRoom()', 'btn-warning-soft', 'door-open', 'Trả phòng')
+                : '');
 
         document.getElementById('room-edit-form').action = roomUrls.update.replace('__ID__', id);
         fill('room-name', r.name); fill('room-floor', r.floor); fill('room-area', r.area);
         fill('room-max', r.max_occupants); fill('room-rent', r.base_rent); fill('room-note', r.note);
 
-        document.getElementById('room-meters').innerHTML = r.meters.map(m =>
-            '<div class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">'
-            + '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + esc(m.label) + '</p>'
-            + '<p class="text-xs text-slate-500 break-words">' + m.integer_digits + ' số nguyên · ' + m.decimal_digits + ' số lẻ · đầu kỳ ' + esc(Number(m.initial_reading)) + ' · từ ' + esc(m.installed_at) + '</p></div>'
-            + '<button type="button" onclick="window.openMeterModal(\'' + m.type + '\')" class="min-h-[44px] px-3 shrink-0 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl">Thay</button></div>'
-        ).join('');
+        document.getElementById('room-meters').innerHTML = r.meters.map(m => {
+            const [meterIcon, meterTone] = meterTheme[m.type] ?? ['gauge', 'bg-slate-100 text-slate-600'];
+            return '<div class="rounded-xl border border-slate-200 bg-white p-3 flex items-start gap-3">'
+                + '<span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ' + meterTone + '">' + icon(meterIcon, 'w-5 h-5') + '</span>'
+                + '<div class="min-w-0 flex-1"><p class="text-sm font-bold text-slate-800">' + esc(m.label) + '</p>'
+                + '<p class="text-[11px] text-slate-500 font-semibold break-words mt-0.5">Đầu kỳ <b class="text-slate-700">' + esc(Number(m.initial_reading)) + '</b> · ' + m.integer_digits + '+' + m.decimal_digits + ' chữ số</p>'
+                + '<p class="text-[11px] text-slate-400 font-semibold">Lắp từ ' + esc(m.installed_at) + '</p></div>'
+                + '<button type="button" onclick="window.openMeterModal(\'' + m.type + '\')" class="btn-icon text-indigo-600 hover:bg-indigo-50" aria-label="Thay đồng hồ">' + icon('refresh-cw') + '</button></div>';
+        }).join('');
 
-        const btn0 = 'min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ';
-        document.getElementById('room-links').innerHTML = r.links.map(l =>
-            '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 px-4 py-3">'
-            + '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 break-words">' + esc(l.name) + (l.is_primary ? ' <span class="text-[10px] text-indigo-600 uppercase">Chủ hộ</span>' : '') + '</p>'
-            + '<p class="text-xs text-slate-500 break-words">' + esc(l.phone ?? 'Chưa có SĐT') + ' · ' + esc(l.approval_label) + (l.has_account ? ' · đã có tài khoản' : '') + '</p></div>'
-            + '<div class="flex gap-2 shrink-0">'
-            + (l.approval === 'approved' && !l.has_account && l.phone ? '<button type="button" onclick="window.issueAccount(' + l.tenant_id + ')" class="' + btn0 + 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Cấp TK</button>' : '')
-            + (!l.is_primary ? '<button type="button" onclick="window.leaveRoom(' + l.id + ')" class="' + btn0 + 'bg-slate-100 text-slate-600 hover:bg-slate-200">Rời đi</button>' : '')
-            + '</div></div>'
-        ).join('');
-
-        document.getElementById('room-rent-actions').innerHTML = !r.has_contract && r.status === 'vacant'
-            ? '<button type="button" onclick="window.openRentModal()" class="flex-1 ' + btn0 + 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700">Cho thuê phòng</button>'
-            : (r.has_contract
-                ? '<button type="button" onclick="window.openMemberModal()" class="flex-1 ' + btn0 + 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Thêm người ở cùng</button>'
-                  + '<button type="button" onclick="window.checkoutRoom()" class="flex-1 ' + btn0 + 'bg-amber-50 text-amber-700 hover:bg-amber-100">Trả phòng</button>'
-                : '');
-
-        const actions = document.getElementById('room-manual-actions');
-        const btn = 'min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ';
-        let html = '';
+        let manual = '';
         if (!r.has_contract) {
-            html += r.status === 'maintenance'
-                ? '<button type="button" onclick="window.setRoomStatus(\'vacant\')" class="' + btn + 'bg-green-50 text-green-700 hover:bg-green-100">Đánh dấu phòng trống</button>'
-                : '<button type="button" onclick="window.setRoomStatus(\'maintenance\')" class="' + btn + 'bg-amber-50 text-amber-700 hover:bg-amber-100">Đánh dấu đang sửa</button>';
+            manual += r.status === 'maintenance'
+                ? actionBtn("window.setRoomStatus('vacant')", 'btn-soft', 'door-open', 'Đánh dấu phòng trống')
+                : actionBtn("window.setRoomStatus('maintenance')", 'btn-warning-soft', 'wrench', 'Đánh dấu đang sửa');
         }
-        html += '<button type="button" onclick="window.deleteRoom()" class="' + btn + 'bg-rose-50 text-rose-600 hover:bg-rose-100">Xóa phòng</button>';
-        actions.innerHTML = html;
+        manual += actionBtn('window.deleteRoom()', 'btn-danger-soft', 'trash-2', 'Xóa phòng');
+        document.getElementById('room-manual-actions').innerHTML = manual;
 
         window.openOverlay('room-drawer');
         if (typeof lucide !== 'undefined') lucide.createIcons();

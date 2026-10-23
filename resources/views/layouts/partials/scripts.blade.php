@@ -121,6 +121,25 @@
         return '<span class="inline-flex items-center justify-center shrink-0 rounded-full font-bold ' + size + ' ' + palette[sum % palette.length] + '" aria-hidden="true">' + window.escapeHtml(initials) + '</span>';
     };
 
+    /**
+     * Đặt trạng thái ô ảnh (partials/image-input): có url = hiện ảnh + "Đổi ảnh", null = ô trống.
+     * isLocalPreview = ảnh vừa chọn từ máy, không gắn link mở tab mới.
+     */
+    window.setImageField = function (field, url, isLocalPreview = false) {
+        const img = field.querySelector('[data-image-img]');
+        const link = field.querySelector('[data-image-preview]');
+        if (url) { img.src = url; } else { img.removeAttribute('src'); }
+        if (url && !isLocalPreview) { link.href = url; } else { link.removeAttribute('href'); }
+        link.classList.toggle('hidden', !url);
+        field.querySelector('[data-image-change]').classList.toggle('hidden', !url);
+        field.querySelector('[data-image-empty]').classList.toggle('hidden', !!url);
+    };
+    document.addEventListener('change', function (e) {
+        const field = e.target.closest?.('[data-image-field]');
+        if (!field || e.target.type !== 'file' || !e.target.files[0]) return;
+        window.setImageField(field, URL.createObjectURL(e.target.files[0]), true);
+    });
+
     window.confirmLogout = function () {
         const submit = () => {
             window.showGlobalLoading();

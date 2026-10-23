@@ -4,10 +4,12 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Manage\ApprovalController;
 use App\Http\Controllers\Manage\ContractController;
 use App\Http\Controllers\Manage\PropertyController;
 use App\Http\Controllers\Manage\RoomController;
 use App\Http\Controllers\Manage\TenantController;
+use App\Http\Controllers\Member\HouseholdController;
 use App\Http\Controllers\TenantImageController;
 use Illuminate\Support\Facades\Route;
 
@@ -61,6 +63,12 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
             Route::post('/{contract}/members', [ContractController::class, 'addMember'])->name('members.store');
             Route::post('/{contract}/checkout', [ContractController::class, 'checkout'])->name('checkout');
         });
+        Route::prefix('approvals')->name('approvals.')->group(function () {
+            Route::get('/', [ApprovalController::class, 'index'])->name('index');
+            Route::post('/members/{link}/approve', [ApprovalController::class, 'approveMember'])->name('members.approve');
+            Route::post('/members/{link}/reject', [ApprovalController::class, 'rejectMember'])->name('members.reject');
+        });
+
         Route::delete('members/{link}', [ContractController::class, 'leave'])->name('members.leave');
 
         Route::prefix('rooms')->name('rooms.')->group(function () {
@@ -75,6 +83,10 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
      * Cổng hộ thuê — chủ hộ + thành viên xem phòng, hồ sơ của mình
      */
     Route::middleware('can:access-member-portal')->prefix('member')->name('member.')->group(function () {
-        //
+        Route::middleware('can:manage-household')->prefix('household')->name('household.')->group(function () {
+            Route::post('/members', [HouseholdController::class, 'storeMember'])->name('members.store');
+            Route::post('/members/{tenant}/account', [HouseholdController::class, 'issueAccount'])->name('members.account');
+            Route::post('/members/{tenant}/reset-password', [HouseholdController::class, 'resetPassword'])->name('members.reset-password');
+        });
     });
 });

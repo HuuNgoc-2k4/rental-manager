@@ -30,6 +30,14 @@
                 <i data-lucide="contact" class="w-4 h-4 shrink-0"></i>
                 <span class="break-words min-w-0">Khách thuê</span>
             </a>
+            <a href="{{ route('manage.approvals.index') }}"
+               class="flex items-center gap-3 px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors {{ request()->routeIs('manage.approvals.*') ? 'sidebar-item-active' : '' }}">
+                <i data-lucide="clipboard-check" class="w-4 h-4 shrink-0"></i>
+                <span class="break-words min-w-0 flex-1">Chờ duyệt</span>
+                @if($pendingApprovalCount > 0)
+                    <span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">{{ $pendingApprovalCount }}</span>
+                @endif
+            </a>
         @endcan
 
         @can('is-admin')

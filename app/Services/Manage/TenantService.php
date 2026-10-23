@@ -6,6 +6,7 @@ use App\Enums\Tenant\TenantInfoStatus;
 use App\Exceptions\BusinessException;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Repositories\Interfaces\ContractTenantRepositoryInterface;
 use App\Repositories\Interfaces\TenantRepositoryInterface;
 use App\Services\BaseService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -26,14 +27,18 @@ class TenantService extends BaseService
 
     protected TenantRepositoryInterface $tenantRepository;
 
+    protected ContractTenantRepositoryInterface $linkRepository;
+
     /**
      * @param Tenant $model
      * @param TenantRepositoryInterface $tenantRepository
+     * @param ContractTenantRepositoryInterface $linkRepository
      */
-    public function __construct(Tenant $model, TenantRepositoryInterface $tenantRepository)
+    public function __construct(Tenant $model, TenantRepositoryInterface $tenantRepository, ContractTenantRepositoryInterface $linkRepository)
     {
         parent::__construct($model);
         $this->tenantRepository = $tenantRepository;
+        $this->linkRepository = $linkRepository;
     }
 
     /**
@@ -90,9 +95,11 @@ class TenantService extends BaseService
     public function createProfile(array $data, array $files, User $actor): Tenant
     {
         $payload = $this->payload($data);
-        $payload['info_status'] = $actor->isAdmin() && $this->hasFullIdentity($payload)
-            ? TenantInfoStatus::Verified->value
-            : TenantInfoStatus::Draft->value;
+        $payload['info_status'] = match (true) {
+            !$this->hasFullIdentity($payload) => TenantInfoStatus::Draft->value,
+            $actor->isAdmin() => TenantInfoStatus::Verified->value,
+            default => TenantInfoStatus::Submitted->value
+        };
 
         if ($payload['info_status'] === TenantInfoStatus::Verified->value) {
             $payload['info_verified_at'] = now();
@@ -176,7 +183,7 @@ class TenantService extends BaseService
     }
 
     /**
-     * Ai được xem ảnh CCCD của hồ sơ này. Mở rộng theo ma trận phân quyền (chủ hộ, người tự khai).
+     * Ai được xem ảnh CCCD (ma trận phân quyền mục 6): admin; chính chủ; chủ hộ với người do mình khai hộ.
      *
      * @param User $user
      * @param Tenant $tenant
@@ -184,7 +191,28 @@ class TenantService extends BaseService
      */
     public function canViewIdImage(User $user, Tenant $tenant): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin()
+            || $tenant->user_id === $user->id
+            || $this->isDeclaredByOwner($user, $tenant);
+    }
+
+    /**
+     * Chủ hộ khai hộ người này: cùng hộ, người đó chưa có tài khoản và dòng hộ do chính chủ hộ tạo.
+     *
+     * @param User $owner
+     * @param Tenant $tenant
+     * @return bool
+     */
+    public function isDeclaredByOwner(User $owner, Tenant $tenant): bool
+    {
+        if (!$owner->isOwner() || $tenant->user_id) {
+            return false;
+        }
+
+        $mine = $this->linkRepository->findLiveLinkForUser($owner->id);
+        $theirs = $this->linkRepository->findLiveLinkForTenant($tenant->id);
+
+        return $mine && $theirs && $mine->contract_id === $theirs->contract_id && $theirs->created_by === $owner->id;
     }
 
     /**

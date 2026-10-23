@@ -29,6 +29,16 @@ use Illuminate\Support\Facades\Log;
  */
 class ContractService extends BaseService
 {
+    /**
+     * @param Contract $model
+     * @param ContractRepositoryInterface $contractRepository
+     * @param ContractTenantRepositoryInterface $linkRepository
+     * @param RoomRepositoryInterface $roomRepository
+     * @param TenantRepositoryInterface $tenantRepository
+     * @param UserRepositoryInterface $userRepository
+     * @param TenantService $tenantService
+     * @param AccountService $accountService
+     */
     public function __construct(
         Contract $model,
         protected ContractRepositoryInterface $contractRepository,
@@ -82,8 +92,13 @@ class ContractService extends BaseService
             $this->roomRepository->update($room, ['status' => RoomStatus::Occupied->value]);
 
             $result = ['status' => true, 'message' => "Đã cho {$tenant->full_name} thuê phòng {$room->name}."];
-            if (!empty($data['issue_account'])) {
-                $result['credentials'] = $this->accountService->issueForTenant($tenant, UserRole::Owner);
+
+            // Khách đã có tài khoản (thuê lại) luôn được đồng bộ vai trò owner + mở khóa, kể cả khi không tick cấp tài khoản.
+            if (!empty($data['issue_account']) || $tenant->user_id) {
+                $credentials = $this->accountService->issueForTenant($tenant, UserRole::Owner);
+                if (!empty($data['issue_account'])) {
+                    $result['credentials'] = $credentials;
+                }
             }
 
             DB::commit();
@@ -129,14 +144,27 @@ class ContractService extends BaseService
             $this->assertNotInHousehold($tenant);
 
             $approved = $actor->isAdmin();
-            $this->linkRepository->create([
-                'contract_id' => $contract->id,
-                'tenant_id' => $tenant->id,
+            $fields = [
                 'is_primary' => false,
                 'approval_status' => ($approved ? MemberApproval::Approved : MemberApproval::Pending)->value,
+                'reject_reason' => null,
                 'joined_at' => now()->toDateString(),
+                'left_at' => null,
                 'created_by' => $actor->id
-            ]);
+            ];
+
+            // Người từng rời / bị từ chối trong cùng hợp đồng: mở lại dòng cũ vì unique(contract_id, tenant_id).
+            $previous = $this->linkRepository->findAnyLink($contract->id, $tenant->id);
+            if ($previous) {
+                $this->linkRepository->update($previous, $fields);
+            } else {
+                $this->linkRepository->create($fields + ['contract_id' => $contract->id, 'tenant_id' => $tenant->id]);
+            }
+
+            // Vai trò theo vị trí: người từng rời (tài khoản bị khóa) hoặc từng là chủ hộ quay lại làm thành viên.
+            if ($approved && $tenant->user_id) {
+                $this->accountService->issueForTenant($tenant, UserRole::Member);
+            }
 
             DB::commit();
 

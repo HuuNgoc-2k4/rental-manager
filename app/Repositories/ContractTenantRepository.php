@@ -48,6 +48,16 @@ class ContractTenantRepository extends BaseRepository implements ContractTenantR
     }
 
     /**
+     * @param int $contractId
+     * @param int $tenantId
+     * @return ContractTenant|null
+     */
+    public function findAnyLink(int $contractId, int $tenantId): ?ContractTenant
+    {
+        return $this->newQuery()->where('contract_id', $contractId)->where('tenant_id', $tenantId)->first();
+    }
+
+    /**
      * @param Contract $contract
      * @param bool $includePending
      * @return int
@@ -61,5 +71,31 @@ class ContractTenantRepository extends BaseRepository implements ContractTenantR
         }
 
         return $query->count();
+    }
+
+    /**
+     * @param int $userId
+     * @return ContractTenant|null
+     */
+    public function findLiveLinkForUser(int $userId): ?ContractTenant
+    {
+        return $this->newQuery()
+            ->whereNull('left_at')
+            ->whereHas('tenant', fn ($q) => $q->where('user_id', $userId))
+            ->whereHas('contract', fn ($q) => $q->where('status', ContractStatus::Active->value))
+            ->first();
+    }
+
+    /**
+     * @return Collection
+     */
+    public function getPending(): Collection
+    {
+        return $this->newQuery()
+            ->whereNull('left_at')
+            ->where('approval_status', MemberApproval::Pending->value)
+            ->with(['tenant', 'contract.room.property'])
+            ->orderBy('id')
+            ->get();
     }
 }

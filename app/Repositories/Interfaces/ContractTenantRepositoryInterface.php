@@ -25,6 +25,15 @@ interface ContractTenantRepositoryInterface extends BaseRepositoryInterface
     public function findLiveLinkForTenant(int $tenantId): ?ContractTenant;
 
     /**
+     * Dòng bất kỳ (kể cả đã rời / bị từ chối) của khách trong hợp đồng — unique(contract_id, tenant_id) nên phải mở lại thay vì chèn mới.
+     *
+     * @param int $contractId
+     * @param int $tenantId
+     * @return ContractTenant|null
+     */
+    public function findAnyLink(int $contractId, int $tenantId): ?ContractTenant;
+
+    /**
      * Số người trong hộ chưa rời.
      *
      * @param Contract $contract
@@ -32,4 +41,20 @@ interface ContractTenantRepositoryInterface extends BaseRepositoryInterface
      * @return int
      */
     public function countLive(Contract $contract, bool $includePending): int;
+
+    /**
+     * Dòng hộ đang ở của người đăng nhập (users → tenants.user_id → contract_tenants chưa rời, hợp đồng hiệu lực).
+     * Đây là nguồn DUY NHẤT xác định "hộ của tôi"; không bao giờ lấy contract_id từ request.
+     *
+     * @param int $userId
+     * @return ContractTenant|null
+     */
+    public function findLiveLinkForUser(int $userId): ?ContractTenant;
+
+    /**
+     * Người được thêm vào hộ đang chờ admin duyệt.
+     *
+     * @return Collection
+     */
+    public function getPending(): Collection;
 }

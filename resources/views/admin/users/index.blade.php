@@ -4,113 +4,136 @@
 @section('subtitle', 'Quản lý tài khoản và vai trò: quản trị viên, chủ hộ, thành viên.')
 
 @section('content')
-    @if($pendingUsers->isNotEmpty())
-        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
-            <p class="text-xs font-black text-amber-700 uppercase tracking-widest mb-4">
-                {{ $pendingUsers->count() }} tài khoản chờ duyệt
-            </p>
-            <div class="space-y-2">
-                @foreach($pendingUsers as $pending)
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-xl px-4 py-3 border border-amber-100">
-                        <div class="min-w-0">
-                            <p class="text-sm font-bold text-slate-800 break-words">{{ $pending->name }}</p>
-                            <p class="text-xs text-slate-500 font-medium break-words">
-                                {{ $pending->email ?? $pending->phone }} · {{ $pending->roleEnum()?->label() }}
-                            </p>
+    <div class="space-y-5">
+        @if($pendingUsers->isNotEmpty())
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0"><i data-lucide="hourglass" class="w-5 h-5"></i></span>
+                    <p class="text-sm font-bold text-amber-800">{{ $pendingUsers->count() }} tài khoản chờ duyệt</p>
+                </div>
+                <div class="space-y-2">
+                    @foreach($pendingUsers as $pending)
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-white rounded-xl p-3 border border-amber-100">
+                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                                @include('partials.avatar', ['name' => $pending->name, 'size' => 'w-10 h-10 text-xs'])
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-800 break-words">{{ $pending->name }}</p>
+                                    <p class="text-xs text-slate-500 font-medium break-words">{{ $pending->email ?? $pending->phone }} · {{ $pending->roleEnum()?->label() }}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 sm:flex gap-2 shrink-0">
+                                <button type="button" onclick="window.changeUserStatus({{ $pending->id }}, 'blocked', @js($pending->name))" class="btn btn-secondary">Từ chối</button>
+                                <button type="button" onclick="window.changeUserStatus({{ $pending->id }}, 'active', @js($pending->name))" class="btn btn-success"><i data-lucide="check" class="w-4 h-4"></i> Duyệt</button>
+                            </div>
                         </div>
-                        <div class="flex gap-2 shrink-0">
-                            <button type="button" onclick="window.changeUserStatus({{ $pending->id }}, 'active', @js($pending->name))"
-                                    class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all">
-                                Duyệt
-                            </button>
-                            <button type="button" onclick="window.changeUserStatus({{ $pending->id }}, 'blocked', @js($pending->name))"
-                                    class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all">
-                                Từ chối
-                            </button>
-                        </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
-        </div>
-    @endif
-
-    <form method="GET" action="{{ route('admin.users.index') }}" class="bg-white rounded-2xl border border-slate-200 p-4 mb-6 flex flex-col md:flex-row gap-3">
-        <input type="text" name="keyword" value="{{ request('keyword') }}" placeholder="Tìm theo tên, email, số điện thoại"
-               class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
-        <select name="role" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-indigo-500 outline-none">
-            <option value="">Tất cả vai trò</option>
-            @foreach($roles as $role)
-                <option value="{{ $role->value }}" @selected(request('role') === $role->value)>{{ $role->label() }}</option>
-            @endforeach
-        </select>
-        <select name="status" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-indigo-500 outline-none">
-            <option value="">Tất cả trạng thái</option>
-            @foreach($statuses as $status)
-                <option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>
-            @endforeach
-        </select>
-        <button type="submit" class="px-6 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-all">
-            Lọc
-        </button>
-    </form>
-
-    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[760px] text-sm">
-                <thead class="bg-slate-50 border-b border-slate-200">
-                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <th class="px-5 py-3 text-left">Người dùng</th>
-                        <th class="px-5 py-3 text-left">Liên hệ</th>
-                        <th class="px-5 py-3 text-left">Vai trò</th>
-                        <th class="px-5 py-3 text-left">Trạng thái</th>
-                        <th class="px-5 py-3 text-left whitespace-nowrap">Ngày tạo</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @forelse($users as $item)
-                        <tr onclick="window.openUserDrawer(this)" class="hover:bg-slate-50 cursor-pointer transition-colors"
-                            data-id="{{ $item->id }}"
-                            data-name="{{ $item->name }}"
-                            data-email="{{ $item->email }}"
-                            data-phone="{{ $item->phone }}"
-                            data-role="{{ $item->role }}"
-                            data-status="{{ $item->status }}">
-                            <td class="px-5 py-4 font-bold text-slate-800 break-words min-w-0">{{ $item->name }}</td>
-                            <td class="px-5 py-4 text-slate-500 font-medium break-words min-w-0">
-                                {{ $item->email ?? '—' }}
-                                @if($item->phone)
-                                    <span class="block text-xs text-slate-400">{{ $item->phone }}</span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-4">
-                                @if($roleEnum = $item->roleEnum())
-                                    <span class="whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $roleEnum->color() }}">
-                                        {{ $roleEnum->label() }}
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-4">
-                                @if($statusEnum = $item->statusEnum())
-                                    <span class="inline-flex whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ring-inset {{ $statusEnum->color() }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $statusEnum->iconColor() }}"></span>
-                                        {{ $statusEnum->label() }}
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-4 text-slate-400 font-medium whitespace-nowrap">{{ $item->created_at?->format('d/m/Y') }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-5 py-12 text-center text-slate-400 font-medium">Không có tài khoản nào.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        @if($users->hasPages())
-            <div class="px-5 py-4 border-t border-slate-100">{{ $users->links() }}</div>
         @endif
+
+        <form method="GET" action="{{ route('admin.users.index') }}" class="card p-4 sm:p-5 grid grid-cols-2 md:flex gap-3">
+            <div class="relative col-span-2 md:flex-1">
+                <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none"><i data-lucide="search" class="w-5 h-5"></i></span>
+                <input type="text" name="keyword" value="{{ request('keyword') }}" placeholder="Tìm theo tên, email, số điện thoại" class="form-input pl-12">
+            </div>
+            <select name="role" class="form-input md:w-48">
+                <option value="">Tất cả vai trò</option>
+                @foreach($roles as $role)
+                    <option value="{{ $role->value }}" @selected(request('role') === $role->value)>{{ $role->label() }}</option>
+                @endforeach
+            </select>
+            <select name="status" class="form-input md:w-48">
+                <option value="">Tất cả trạng thái</option>
+                @foreach($statuses as $status)
+                    <option value="{{ $status->value }}" @selected(request('status') === $status->value)>{{ $status->label() }}</option>
+                @endforeach
+            </select>
+            <div class="col-span-2 md:col-span-1 flex gap-2">
+                <button type="submit" class="btn btn-dark flex-1"><i data-lucide="filter" class="w-4 h-4"></i> Lọc</button>
+                <a href="{{ route('admin.users.index') }}" class="btn-icon btn-outline" title="Xóa bộ lọc" aria-label="Xóa bộ lọc"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></a>
+            </div>
+        </form>
+
+        <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100">
+                <p class="text-sm font-bold text-slate-800">{{ $users->total() }} tài khoản</p>
+            </div>
+
+            {{-- Mobile: thẻ --}}
+            <div class="lg:hidden divide-y divide-slate-100">
+                @forelse($users as $item)
+                    <button type="button" onclick="window.openUserDrawer(this)" class="w-full text-left p-4 flex items-start gap-3 hover:bg-slate-50/70 transition-colors"
+                            data-id="{{ $item->id }}" data-name="{{ $item->name }}" data-email="{{ $item->email }}" data-phone="{{ $item->phone }}" data-role="{{ $item->role }}" data-status="{{ $item->status }}">
+                        @include('partials.avatar', ['name' => $item->name, 'size' => 'w-11 h-11 text-sm'])
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-bold text-slate-800 break-words">{{ $item->name }}</span>
+                            <span class="block text-[11px] font-semibold text-slate-500 break-all mt-0.5">{{ $item->email ?? $item->phone }}</span>
+                            <span class="mt-2 flex flex-wrap gap-1.5">
+                                @if($roleEnum = $item->roleEnum())<span class="badge {{ $roleEnum->color() }}">{{ $roleEnum->label() }}</span>@endif
+                                @if($statusEnum = $item->statusEnum())
+                                    <span class="badge {{ $statusEnum->color() }}"><span class="w-1.5 h-1.5 rounded-full {{ $statusEnum->iconColor() }}"></span>{{ $statusEnum->label() }}</span>
+                                @endif
+                            </span>
+                        </span>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 shrink-0 mt-3"></i>
+                    </button>
+                @empty
+                    @include('partials.empty-state', ['icon' => 'users', 'title' => 'Không có tài khoản nào', 'text' => null])
+                @endforelse
+            </div>
+
+            {{-- Desktop: bảng --}}
+            <div class="hidden lg:block px-4 pb-2 overflow-x-auto">
+                <table class="w-full text-left border-separate border-spacing-y-2">
+                    <thead>
+                        <tr class="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                            <th class="py-3 pl-4 pr-4">Người dùng</th>
+                            <th class="p-3">Liên hệ</th>
+                            <th class="p-3">Vai trò</th>
+                            <th class="p-3">Trạng thái</th>
+                            <th class="p-3 pr-4 whitespace-nowrap">Ngày tạo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($users as $item)
+                            @php $cell = 'bg-white border-y border-slate-100 group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors'; @endphp
+                            <tr onclick="window.openUserDrawer(this)" class="group cursor-pointer text-sm"
+                                data-id="{{ $item->id }}" data-name="{{ $item->name }}" data-email="{{ $item->email }}" data-phone="{{ $item->phone }}" data-role="{{ $item->role }}" data-status="{{ $item->status }}">
+                                <td class="py-3 pl-4 pr-4 border-l rounded-l-2xl {{ $cell }}">
+                                    <div class="flex items-center gap-3">
+                                        @include('partials.avatar', ['name' => $item->name, 'size' => 'w-10 h-10 text-xs'])
+                                        <p class="font-bold text-slate-800 break-words min-w-0 group-hover:text-indigo-600 transition-colors">{{ $item->name }}</p>
+                                    </div>
+                                </td>
+                                <td class="p-3 {{ $cell }}">
+                                    <div class="flex flex-col gap-1 text-xs font-semibold text-slate-500">
+                                        <span class="flex items-center gap-2 break-all"><i data-lucide="mail" class="w-3.5 h-3.5 text-slate-300 shrink-0"></i>{{ $item->email ?? '—' }}</span>
+                                        @if($item->phone)
+                                            <span class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-300 shrink-0"></i>{{ $item->phone }}</span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="p-3 {{ $cell }}">
+                                    @if($roleEnum = $item->roleEnum())<span class="badge {{ $roleEnum->color() }}">{{ $roleEnum->label() }}</span>@endif
+                                </td>
+                                <td class="p-3 {{ $cell }}">
+                                    @if($statusEnum = $item->statusEnum())
+                                        <span class="badge {{ $statusEnum->color() }}"><span class="w-1.5 h-1.5 rounded-full {{ $statusEnum->iconColor() }}"></span>{{ $statusEnum->label() }}</span>
+                                    @endif
+                                </td>
+                                <td class="p-3 pr-4 border-r rounded-r-2xl text-xs font-semibold text-slate-400 whitespace-nowrap {{ $cell }}">{{ $item->created_at?->format('d/m/Y') }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5">@include('partials.empty-state', ['icon' => 'users', 'title' => 'Không có tài khoản nào', 'text' => null])</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($users->hasPages())
+                <div class="px-5 py-4 border-t border-slate-100">{{ $users->links() }}</div>
+            @endif
+        </div>
     </div>
 
     @include('admin.users.partials.detail-drawer')
@@ -139,6 +162,7 @@
         editForm.querySelector('[name="status"]').value = data.status || '';
         editForm.querySelector('[name="password"]').value = '';
         document.getElementById('user-drawer-title').textContent = data.name || '';
+        document.getElementById('user-drawer-avatar').innerHTML = window.avatarHtml(data.name, 'w-11 h-11 text-sm');
 
         drawerOverlay.classList.remove('hidden');
         requestAnimationFrame(() => {
@@ -150,7 +174,7 @@
     window.closeUserDrawer = function () {
         drawerOverlay.classList.add('opacity-0');
         drawerPanel.classList.add('translate-x-full');
-        setTimeout(() => drawerOverlay.classList.add('hidden'), 300);
+        setTimeout(() => { if (drawerOverlay.classList.contains('opacity-0')) drawerOverlay.classList.add('hidden'); }, 300);
     };
 
     /** Duyệt / khóa / mở lại tài khoản — submit form ẩn sau khi người dùng xác nhận. */
@@ -163,7 +187,7 @@
             icon: isDanger ? 'warning' : 'question',
             iconColor: isDanger ? '#e11d48' : '#4f46e5',
             title: titles[status],
-            html: '<p class="text-sm text-slate-600 break-words">Tài khoản: <b>' + userName + '</b></p>',
+            html: '<p class="text-sm text-slate-600 break-words">Tài khoản: <b>' + window.escapeHtml(userName) + '</b></p>',
             showCancelButton: true,
             confirmButtonText: isDanger ? 'Khóa tài khoản' : 'Xác nhận',
             cancelButtonText: 'Hủy'

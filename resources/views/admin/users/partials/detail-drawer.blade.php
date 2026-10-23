@@ -9,85 +9,80 @@
 
 <div id="user-drawer-overlay" data-drawer-overlay data-close-fn="closeUserDrawer" onclick="if (event.target === this) window.closeUserDrawer()"
      style="margin-top:0"
-     class="hidden fixed inset-0 z-[100] bg-slate-900/40 opacity-0 transition-opacity duration-300">
+     class="hidden fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300">
     <div id="user-drawer-panel"
-         class="absolute right-0 top-0 h-full w-full lg:w-[52vw] xl:w-[44vw] bg-white shadow-2xl z-[101]
-                translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto">
-        <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
-            <div class="min-w-0">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sửa tài khoản</p>
-                <h3 id="user-drawer-title" class="text-lg font-black text-slate-800 break-words min-w-0"></h3>
+         class="absolute right-0 top-0 h-full w-full lg:w-[52vw] xl:w-[44vw] bg-slate-50 shadow-2xl z-[101]
+                translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center gap-3 bg-white shrink-0">
+            <span id="user-drawer-avatar" class="shrink-0"></span>
+            <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Sửa tài khoản</p>
+                <h3 id="user-drawer-title" class="text-lg font-bold text-slate-900 break-words min-w-0"></h3>
             </div>
-            <button type="button" onclick="window.closeUserDrawer()" class="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
+            <button type="button" onclick="window.closeUserDrawer()" aria-label="Đóng" class="btn-icon -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
 
-        <form id="user-edit-form" method="POST" class="p-6 space-y-4">
+        <form id="user-edit-form" method="POST" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             @csrf
             @method('PUT')
 
-            <div>
-                <label for="edit-name" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Họ và tên</label>
-                <input type="text" id="edit-name" name="name" required
-                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="card p-4 sm:p-5 space-y-4">
+                <div class="flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-indigo-500"></i><p class="section-label">Thông tin</p></div>
                 <div>
-                    <label for="edit-email" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                    <input type="email" id="edit-email" name="email"
-                           class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+                    <label for="edit-name" class="form-label">Họ và tên</label>
+                    <input type="text" id="edit-name" name="name" required class="form-input">
                 </div>
-                <div>
-                    <label for="edit-phone" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Số điện thoại</label>
-                    <input type="text" id="edit-phone" name="phone"
-                           class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                    <label for="edit-role" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Vai trò</label>
-                    <select id="edit-role" name="role" required
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-indigo-500 outline-none">
-                        @foreach($roles as $role)
-                            <option value="{{ $role->value }}">{{ $role->label() }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="edit-status" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Trạng thái</label>
-                    <select id="edit-status" name="status" required
-                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:border-indigo-500 outline-none">
-                        @foreach($statuses as $status)
-                            <option value="{{ $status->value }}">{{ $status->label() }}</option>
-                        @endforeach
-                    </select>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-email" class="form-label">Email</label>
+                        <input type="email" id="edit-email" name="email" class="form-input">
+                    </div>
+                    <div>
+                        <label for="edit-phone" class="form-label">Số điện thoại</label>
+                        <input type="text" id="edit-phone" name="phone" inputmode="numeric" class="form-input">
+                    </div>
                 </div>
             </div>
 
-            <div>
-                <label for="edit-password" class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Mật khẩu mới</label>
-                <input type="password" id="edit-password" name="password" placeholder="Để trống nếu không đổi"
-                       class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
+            <div class="card p-4 sm:p-5 space-y-4">
+                <div class="flex items-center gap-2"><i data-lucide="shield" class="w-4 h-4 text-indigo-500"></i><p class="section-label">Phân quyền</p></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="edit-role" class="form-label">Vai trò</label>
+                        <select id="edit-role" name="role" required class="form-input">
+                            @foreach($roles as $role)
+                                <option value="{{ $role->value }}">{{ $role->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="edit-status" class="form-label">Trạng thái</label>
+                        <select id="edit-status" name="status" required class="form-input">
+                            @foreach($statuses as $status)
+                                <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <button type="button" onclick="window.resetUserPassword()"
-                    class="w-full min-h-[44px] bg-amber-50 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-100 transition-all">
-                Đặt lại mật khẩu (sinh mật khẩu tạm)
-            </button>
-
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="window.closeUserDrawer()"
-                        class="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">
-                    Đóng
-                </button>
-                <button type="submit"
-                        class="px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">
-                    Lưu thay đổi
+            <div class="card p-4 sm:p-5 space-y-4">
+                <div class="flex items-center gap-2"><i data-lucide="key-round" class="w-4 h-4 text-indigo-500"></i><p class="section-label">Mật khẩu</p></div>
+                <div>
+                    <label for="edit-password" class="form-label">Mật khẩu mới</label>
+                    <input type="password" id="edit-password" name="password" placeholder="Để trống nếu không đổi" autocomplete="new-password" class="form-input">
+                </div>
+                <button type="button" onclick="window.resetUserPassword()" class="btn btn-warning-soft w-full whitespace-normal text-center">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> Đặt lại mật khẩu (sinh mật khẩu tạm)
                 </button>
             </div>
         </form>
+
+        <div class="px-4 sm:px-6 py-3 border-t border-slate-200 bg-white shrink-0 grid grid-cols-2 sm:flex sm:justify-end gap-2 pb-safe">
+            <button type="button" onclick="window.closeUserDrawer()" class="btn btn-secondary">Đóng</button>
+            <button type="submit" form="user-edit-form" class="btn btn-primary"><i data-lucide="save" class="w-4 h-4"></i> Lưu thay đổi</button>
+        </div>
     </div>
 </div>

@@ -5,6 +5,8 @@
     <input type="hidden" name="status">
 </form>
 
+<form id="user-reset-form" method="POST" class="hidden">@csrf</form>
+
 <div id="user-drawer-overlay" data-drawer-overlay data-close-fn="closeUserDrawer" onclick="if (event.target === this) window.closeUserDrawer()"
      style="margin-top:0"
      class="hidden fixed inset-0 z-[100] bg-slate-900/40 opacity-0 transition-opacity duration-300">
@@ -70,6 +72,11 @@
                 <input type="password" id="edit-password" name="password" placeholder="Để trống nếu không đổi"
                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all">
             </div>
+
+            <button type="button" onclick="window.resetUserPassword()"
+                    class="w-full min-h-[44px] bg-amber-50 text-amber-700 rounded-xl text-sm font-bold hover:bg-amber-100 transition-all">
+                Đặt lại mật khẩu (sinh mật khẩu tạm)
+            </button>
 
             <div class="flex justify-end gap-3 pt-2">
                 <button type="button" onclick="window.closeUserDrawer()"

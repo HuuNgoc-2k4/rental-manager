@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Repositories\ContractRepository;
+use App\Repositories\ContractTenantRepository;
+use App\Repositories\Interfaces\ContractRepositoryInterface;
+use App\Repositories\Interfaces\ContractTenantRepositoryInterface;
 use App\Repositories\Interfaces\PropertyRepositoryInterface;
 use App\Repositories\Interfaces\RoomMeterRepositoryInterface;
 use App\Repositories\Interfaces\RoomRepositoryInterface;
@@ -24,7 +28,9 @@ class RepositoryServiceProvider extends ServiceProvider
         PropertyRepositoryInterface::class => PropertyRepository::class,
         RoomRepositoryInterface::class => RoomRepository::class,
         RoomMeterRepositoryInterface::class => RoomMeterRepository::class,
-        TenantRepositoryInterface::class => TenantRepository::class
+        TenantRepositoryInterface::class => TenantRepository::class,
+        ContractRepositoryInterface::class => ContractRepository::class,
+        ContractTenantRepositoryInterface::class => ContractTenantRepository::class
     ];
 
     public function register(): void

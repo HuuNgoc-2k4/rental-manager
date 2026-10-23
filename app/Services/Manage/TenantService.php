@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Repositories\Interfaces\TenantRepositoryInterface;
 use App\Services\BaseService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,16 @@ class TenantService extends BaseService
     public function getList(Request $request): LengthAwarePaginator
     {
         return $this->tenantRepository->paginate($request->only(['keyword', 'info_status']), $this->getPerPage($request));
+    }
+
+    /**
+     * Khách chưa ở hộ nào — nguồn cho ô chọn khi cho thuê / thêm người.
+     *
+     * @return Collection
+     */
+    public function getAvailable(): Collection
+    {
+        return $this->tenantRepository->getWithoutLiveHousehold();
     }
 
     /**

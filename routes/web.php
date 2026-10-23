@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Manage\ContractController;
 use App\Http\Controllers\Manage\PropertyController;
 use App\Http\Controllers\Manage\RoomController;
 use App\Http\Controllers\Manage\TenantController;
@@ -30,6 +31,7 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
             Route::get('/', [AdminUserController::class, 'index'])->name('index');
             Route::put('/{user}', [AdminUserController::class, 'update'])->name('update');
             Route::patch('/{user}/status', [AdminUserController::class, 'updateStatus'])->name('status');
+            Route::post('/{user}/reset-password', [AdminUserController::class, 'resetPassword'])->name('reset-password');
         });
     });
 
@@ -51,7 +53,15 @@ Route::middleware(['auth', 'check.status', 'password.changed'])->group(function 
             Route::post('/', [TenantController::class, 'store'])->name('store');
             Route::put('/{tenant}', [TenantController::class, 'update'])->name('update');
             Route::delete('/{tenant}', [TenantController::class, 'destroy'])->name('destroy');
+            Route::post('/{tenant}/account', [ContractController::class, 'issueAccount'])->name('account');
         });
+
+        Route::post('rooms/{room}/rent', [ContractController::class, 'store'])->name('rooms.rent');
+        Route::prefix('contracts')->name('contracts.')->group(function () {
+            Route::post('/{contract}/members', [ContractController::class, 'addMember'])->name('members.store');
+            Route::post('/{contract}/checkout', [ContractController::class, 'checkout'])->name('checkout');
+        });
+        Route::delete('members/{link}', [ContractController::class, 'leave'])->name('members.leave');
 
         Route::prefix('rooms')->name('rooms.')->group(function () {
             Route::put('/{room}', [RoomController::class, 'update'])->name('update');

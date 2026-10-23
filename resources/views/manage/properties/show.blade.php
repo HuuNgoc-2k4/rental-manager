@@ -31,6 +31,17 @@
             'status' => $room->status,
             'status_label' => \App\Enums\Property\RoomStatus::tryFrom($room->status)?->label(),
             'has_contract' => (bool) $contract,
+            'contract_id' => $contract?->id,
+            'links' => ($contract?->liveLinks ?? collect())->map(fn ($l) => [
+                'id' => $l->id,
+                'tenant_id' => $l->tenant_id,
+                'name' => $l->tenant?->full_name,
+                'phone' => $l->tenant?->phone,
+                'is_primary' => $l->is_primary,
+                'approval' => $l->approval_status,
+                'approval_label' => \App\Enums\Contract\MemberApproval::tryFrom($l->approval_status)?->label(),
+                'has_account' => (bool) $l->tenant?->user_id
+            ])->values(),
             'owner_name' => $owner?->tenant?->full_name,
             'residents' => $residents->count(),
             'meters' => $room->currentMeters->map(fn ($m) => [
@@ -98,6 +109,9 @@
     {{-- Forms ẩn: đặt NGOÀI drawer để không lồng form trong form --}}
     <form id="room-status-form" method="POST" class="hidden">@csrf @method('PATCH')<input type="hidden" name="status"></form>
     <form id="room-delete-form" method="POST" class="hidden">@csrf @method('DELETE')</form>
+    <form id="link-leave-form" method="POST" class="hidden">@csrf @method('DELETE')</form>
+    <form id="account-form" method="POST" class="hidden">@csrf</form>
+    <form id="checkout-form" method="POST" class="hidden">@csrf<input type="hidden" name="ended_at"></form>
 
     {{-- Drawer phòng --}}
     <div id="room-drawer" data-drawer-overlay data-close-fn="closeActiveDrawer" onclick="if (event.target === this) window.closeOverlay('room-drawer')"
@@ -115,7 +129,8 @@
 
             <div class="p-6 space-y-6">
                 <div id="room-household" class="rounded-xl bg-slate-50 p-4 text-sm"></div>
-                @stack('room-actions')
+                <div id="room-links" class="space-y-2"></div>
+                <div id="room-rent-actions" class="flex flex-col sm:flex-row gap-3"></div>
 
                 <form id="room-edit-form" method="POST" onsubmit="window.showGlobalLoading()" class="space-y-4">
                     @csrf @method('PUT')
@@ -215,6 +230,86 @@
         </form>
     </div>
 
+    {{-- Modal cho thuê phòng --}}
+    <div id="rent-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('rent-modal')"
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <form id="rent-form" method="POST" data-panel onsubmit="window.showGlobalLoading()"
+              class="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+            @csrf
+            <h3 id="rent-title" class="text-lg font-black text-slate-800">Cho thuê phòng</h3>
+            <div>
+                <label for="rent-tenant" class="{{ $lbl }}">Chọn khách có sẵn</label>
+                <select id="rent-tenant" name="tenant_id" onchange="window.toggleNewTenant()" class="{{ $inp }}">
+                    <option value="">— Tạo khách mới —</option>
+                    @foreach($availableTenants as $t)
+                        <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div id="rent-new-tenant" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="rent-name" class="{{ $lbl }}">Họ và tên khách mới</label>
+                    <input type="text" id="rent-name" name="full_name" maxlength="255" class="{{ $inp }}">
+                </div>
+                <div>
+                    <label for="rent-phone" class="{{ $lbl }}">Số điện thoại</label>
+                    <input type="text" id="rent-phone" name="phone" inputmode="numeric" class="{{ $inp }}">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="rent-start" class="{{ $lbl }}">Ngày vào ở</label>
+                    <input type="date" id="rent-start" name="start_date" required value="{{ now()->toDateString() }}" class="{{ $inp }}">
+                </div>
+                <div>
+                    <label for="rent-end" class="{{ $lbl }}">Hết hạn dự kiến</label>
+                    <input type="date" id="rent-end" name="end_date" class="{{ $inp }}">
+                </div>
+            </div>
+            <label class="flex items-start gap-3 text-sm font-medium text-slate-600 min-h-[44px]">
+                <input type="checkbox" name="issue_account" value="1" checked class="mt-1 w-5 h-5 rounded">
+                <span class="break-words min-w-0">Cấp tài khoản cho chủ hộ (cần số điện thoại, hệ thống sẽ hiện mật khẩu tạm một lần)</span>
+            </label>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="window.closeOverlay('rent-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
+                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Cho thuê</button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Modal thêm người ở cùng --}}
+    <div id="member-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('member-modal')"
+         class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
+        <form id="member-form" method="POST" data-panel onsubmit="window.showGlobalLoading()"
+              class="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto p-5 md:p-6 space-y-4 scale-95 transition-transform duration-300">
+            @csrf
+            <h3 class="text-lg font-black text-slate-800">Thêm người ở cùng</h3>
+            <div>
+                <label for="member-tenant" class="{{ $lbl }}">Chọn khách có sẵn</label>
+                <select id="member-tenant" name="tenant_id" class="{{ $inp }}">
+                    <option value="">— Tạo người mới —</option>
+                    @foreach($availableTenants as $t)
+                        <option value="{{ $t->id }}">{{ $t->full_name }}{{ $t->phone ? ' · '.$t->phone : '' }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="member-name" class="{{ $lbl }}">Họ và tên người mới</label>
+                    <input type="text" id="member-name" name="full_name" maxlength="255" class="{{ $inp }}">
+                </div>
+                <div>
+                    <label for="member-phone" class="{{ $lbl }}">Số điện thoại</label>
+                    <input type="text" id="member-phone" name="phone" inputmode="numeric" class="{{ $inp }}">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="window.closeOverlay('member-modal')" class="min-h-[44px] px-6 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-all">Đóng</button>
+                <button type="submit" class="min-h-[44px] px-6 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition-all">Thêm</button>
+            </div>
+        </form>
+    </div>
+
     {{-- Modal thay đồng hồ --}}
     <div id="meter-modal" data-close-fn="closeActiveModal" onclick="if (event.target === this) window.closeOverlay('meter-modal')"
          class="hidden fixed inset-0 z-50 bg-slate-900/40 opacity-0 transition-opacity duration-300 flex items-center justify-center p-4">
@@ -257,7 +352,12 @@
         update: @js(route('manage.rooms.update', ['room' => '__ID__'])),
         status: @js(route('manage.rooms.status', ['room' => '__ID__'])),
         destroy: @js(route('manage.rooms.destroy', ['room' => '__ID__'])),
-        meter: @js(route('manage.rooms.meters.replace', ['room' => '__ID__']))
+        meter: @js(route('manage.rooms.meters.replace', ['room' => '__ID__'])),
+        rent: @js(route('manage.rooms.rent', ['room' => '__ID__'])),
+        addMember: @js(route('manage.contracts.members.store', ['contract' => '__ID__'])),
+        checkout: @js(route('manage.contracts.checkout', ['contract' => '__ID__'])),
+        leave: @js(route('manage.members.leave', ['link' => '__ID__'])),
+        account: @js(route('manage.tenants.account', ['tenant' => '__ID__']))
     };
     let currentRoomId = null;
 
@@ -284,6 +384,24 @@
             + '<p class="text-xs text-slate-500 break-words">' + m.integer_digits + ' số nguyên · ' + m.decimal_digits + ' số lẻ · đầu kỳ ' + esc(Number(m.initial_reading)) + ' · từ ' + esc(m.installed_at) + '</p></div>'
             + '<button type="button" onclick="window.openMeterModal(\'' + m.type + '\')" class="min-h-[44px] px-3 shrink-0 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl">Thay</button></div>'
         ).join('');
+
+        const btn0 = 'min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ';
+        document.getElementById('room-links').innerHTML = r.links.map(l =>
+            '<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 px-4 py-3">'
+            + '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 break-words">' + esc(l.name) + (l.is_primary ? ' <span class="text-[10px] text-indigo-600 uppercase">Chủ hộ</span>' : '') + '</p>'
+            + '<p class="text-xs text-slate-500 break-words">' + esc(l.phone ?? 'Chưa có SĐT') + ' · ' + esc(l.approval_label) + (l.has_account ? ' · đã có tài khoản' : '') + '</p></div>'
+            + '<div class="flex gap-2 shrink-0">'
+            + (l.approval === 'approved' && !l.has_account && l.phone ? '<button type="button" onclick="window.issueAccount(' + l.tenant_id + ')" class="' + btn0 + 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Cấp TK</button>' : '')
+            + (!l.is_primary ? '<button type="button" onclick="window.leaveRoom(' + l.id + ')" class="' + btn0 + 'bg-slate-100 text-slate-600 hover:bg-slate-200">Rời đi</button>' : '')
+            + '</div></div>'
+        ).join('');
+
+        document.getElementById('room-rent-actions').innerHTML = !r.has_contract && r.status === 'vacant'
+            ? '<button type="button" onclick="window.openRentModal()" class="flex-1 ' + btn0 + 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700">Cho thuê phòng</button>'
+            : (r.has_contract
+                ? '<button type="button" onclick="window.openMemberModal()" class="flex-1 ' + btn0 + 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Thêm người ở cùng</button>'
+                  + '<button type="button" onclick="window.checkoutRoom()" class="flex-1 ' + btn0 + 'bg-amber-50 text-amber-700 hover:bg-amber-100">Trả phòng</button>'
+                : '');
 
         const actions = document.getElementById('room-manual-actions');
         const btn = 'min-h-[44px] px-4 rounded-xl text-sm font-bold transition-all ';
@@ -319,6 +437,40 @@
         document.getElementById('meter-modal-title').textContent = 'Thay đồng hồ ' + m.label.toLowerCase();
         fill('meter-int', m.integer_digits); fill('meter-dec', m.decimal_digits); fill('meter-init', 0);
         window.openOverlay('meter-modal');
+    };
+
+    window.toggleNewTenant = function () {
+        document.getElementById('rent-new-tenant').classList.toggle('hidden', !!document.getElementById('rent-tenant').value);
+    };
+
+    window.openRentModal = function () {
+        document.getElementById('rent-form').action = roomUrls.rent.replace('__ID__', currentRoomId);
+        document.getElementById('rent-title').textContent = 'Cho thuê phòng ' + rooms[currentRoomId].name;
+        window.toggleNewTenant();
+        window.openOverlay('rent-modal');
+    };
+
+    window.openMemberModal = function () {
+        document.getElementById('member-form').action = roomUrls.addMember.replace('__ID__', rooms[currentRoomId].contract_id);
+        window.openOverlay('member-modal');
+    };
+
+    window.leaveRoom = function (linkId) {
+        document.getElementById('link-leave-form').action = roomUrls.leave.replace('__ID__', linkId);
+        window.confirmSubmit('link-leave-form', { title: 'Người này rời phòng?', html: '<p class="text-sm text-slate-600 break-words">Tài khoản của họ (nếu có) sẽ bị khóa.</p>', confirmText: 'Xác nhận rời đi', danger: true });
+    };
+
+    window.issueAccount = function (tenantId) {
+        const name = rooms[currentRoomId].links.find(l => l.tenant_id === tenantId)?.name;
+        document.getElementById('account-form').action = roomUrls.account.replace('__ID__', tenantId);
+        window.confirmSubmit('account-form', { title: 'Cấp tài khoản?', html: '<p class="text-sm text-slate-600 break-words">Cấp tài khoản cho <b>' + esc(name) + '</b>. Mật khẩu tạm chỉ hiện một lần.</p>' });
+    };
+
+    window.checkoutRoom = function () {
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById('checkout-form').action = roomUrls.checkout.replace('__ID__', rooms[currentRoomId].contract_id);
+        document.getElementById('checkout-form').querySelector('[name="ended_at"]').value = today;
+        window.confirmSubmit('checkout-form', { title: 'Trả phòng ' + rooms[currentRoomId].name + '?', html: '<p class="text-sm text-slate-600 break-words">Hợp đồng kết thúc hôm nay, phòng chuyển về trống. Tài khoản của hộ vẫn mở để xem công nợ.</p>', confirmText: 'Trả phòng', danger: true });
     };
 </script>
 @endpush

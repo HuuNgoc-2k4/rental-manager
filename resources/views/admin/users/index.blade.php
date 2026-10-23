@@ -124,10 +124,13 @@
     const statusForm = document.getElementById('user-status-form');
 
     const updateUrlTemplate = @js(route('admin.users.update', ['user' => '__ID__']));
+    const resetUrlTemplate = @js(route('admin.users.reset-password', ['user' => '__ID__']));
+    let currentUserId = null;
     const statusUrlTemplate = @js(route('admin.users.status', ['user' => '__ID__']));
 
     window.openUserDrawer = function (row) {
         const data = row.dataset;
+        currentUserId = data.id;
         editForm.action = updateUrlTemplate.replace('__ID__', data.id);
         editForm.querySelector('[name="name"]').value = data.name || '';
         editForm.querySelector('[name="email"]').value = data.email || '';
@@ -171,6 +174,11 @@
             window.showGlobalLoading();
             statusForm.submit();
         });
+    };
+
+    window.resetUserPassword = function () {
+        document.getElementById('user-reset-form').action = resetUrlTemplate.replace('__ID__', currentUserId);
+        window.confirmSubmit('user-reset-form', { title: 'Đặt lại mật khẩu?', html: '<p class="text-sm text-slate-600 break-words">Hệ thống sinh mật khẩu tạm, hiện đúng một lần. Người dùng phải đổi mật khẩu khi đăng nhập.</p>', confirmText: 'Đặt lại' });
     };
 
     editForm.addEventListener('submit', () => window.showGlobalLoading());

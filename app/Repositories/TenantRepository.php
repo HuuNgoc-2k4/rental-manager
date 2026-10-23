@@ -2,10 +2,12 @@
 
 namespace App\Repositories;
 
+use App\Enums\Contract\ContractStatus;
 use App\Models\Tenant;
 use App\Repositories\Interfaces\TenantRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class TenantRepository extends BaseRepository implements TenantRepositoryInterface
 {
@@ -49,5 +51,27 @@ class TenantRepository extends BaseRepository implements TenantRepositoryInterfa
     public function hasContractHistory(Tenant $tenant): bool
     {
         return $tenant->contractTenants()->exists();
+    }
+
+    /**
+     * @param int $userId
+     * @return Tenant|null
+     */
+    public function findByUserId(int $userId): ?Tenant
+    {
+        return $this->newQuery()->where('user_id', $userId)->first();
+    }
+
+    /**
+     * @return Collection
+     */
+    public function getWithoutLiveHousehold(): Collection
+    {
+        return $this->newQuery()
+            ->whereDoesntHave('contractTenants', fn ($q) => $q
+                ->whereNull('left_at')
+                ->whereHas('contract', fn ($c) => $c->where('status', ContractStatus::Active->value)))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'phone']);
     }
 }

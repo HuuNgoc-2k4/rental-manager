@@ -6,6 +6,7 @@ use App\Enums\User\UserRole;
 use App\Enums\User\UserStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AccountService;
 use App\Services\Admin\UserService;
 use App\Validators\Admin\UserValidator;
 use Illuminate\Contracts\View\View;
@@ -88,5 +89,19 @@ class UserController extends Controller
         }
 
         return back()->with('success', $result['message']);
+    }
+
+    /**
+     * Đặt lại mật khẩu: sinh mật khẩu tạm (hiện đúng 1 lần), bắt đổi ở lần đăng nhập tới.
+     *
+     * @param AccountService $accountService
+     * @param User $user
+     * @return RedirectResponse
+     */
+    public function resetPassword(AccountService $accountService, User $user)
+    {
+        $credentials = $accountService->resetPassword($user);
+
+        return back()->with('success', "Đã đặt lại mật khẩu cho {$user->name}.")->with('credentials', $credentials);
     }
 }

@@ -25,7 +25,7 @@ class RoomRepository extends BaseRepository implements RoomRepositoryInterface
     {
         return $this->newQuery()
             ->where('property_id', $property->id)
-            ->with(['currentMeters', 'activeContract.residents.tenant'])
+            ->with(['currentMeters', 'activeContract.residents.tenant', 'activeContract.liveLinks.tenant.user'])
             ->orderBy('floor')
             ->orderBy('name')
             ->get();

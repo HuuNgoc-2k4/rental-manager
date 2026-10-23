@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Property;
 use App\Services\Manage\PropertyService;
 use App\Services\Manage\RoomService;
+use App\Services\Manage\TenantService;
 use App\Validators\Manage\PropertyValidator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -20,13 +21,17 @@ class PropertyController extends Controller
 
     protected PropertyValidator $propertyValidator;
 
+    protected TenantService $tenantService;
+
     /**
      * @param PropertyService $propertyService
      * @param RoomService $roomService
      * @param PropertyValidator $propertyValidator
+     * @param TenantService $tenantService
      */
-    public function __construct(PropertyService $propertyService, RoomService $roomService, PropertyValidator $propertyValidator)
+    public function __construct(PropertyService $propertyService, RoomService $roomService, PropertyValidator $propertyValidator, TenantService $tenantService)
     {
+        $this->tenantService = $tenantService;
         $this->propertyService = $propertyService;
         $this->roomService = $roomService;
         $this->propertyValidator = $propertyValidator;
@@ -53,8 +58,9 @@ class PropertyController extends Controller
         $rooms = $this->roomService->getForMap($property);
         $floors = $rooms->groupBy(fn ($room) => $room->floor ?? 'none')->sortKeys();
         $statuses = RoomStatus::cases();
+        $availableTenants = $this->tenantService->getAvailable();
 
-        return view('manage.properties.show', compact('property', 'rooms', 'floors', 'statuses'));
+        return view('manage.properties.show', compact('property', 'rooms', 'floors', 'statuses', 'availableTenants'));
     }
 
     /**
@@ -65,13 +71,16 @@ class PropertyController extends Controller
     {
         $data = $request->only(['name', 'address', 'note']);
 
+        // 1. Validate dữ liệu
         $validator = $this->propertyValidator->saveValidator($data);
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
 
+        // 2. Gọi Service xử lý
         $result = $this->propertyService->store($data);
 
+        // 3. Phản hồi
         return back()->with($result['status'] ? 'success' : 'error', $result['message']);
     }
 
@@ -84,13 +93,16 @@ class PropertyController extends Controller
     {
         $data = $request->only(['name', 'address', 'note']);
 
+        // 1. Validate dữ liệu
         $validator = $this->propertyValidator->saveValidator($data);
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
 
+        // 2. Gọi Service xử lý
         $result = $this->propertyService->update($property, $data);
 
+        // 3. Phản hồi
         return back()->with($result['status'] ? 'success' : 'error', $result['message']);
     }
 
@@ -100,12 +112,14 @@ class PropertyController extends Controller
      */
     public function destroy(Property $property)
     {
+        // 1. Gọi Service xử lý
         $result = $this->propertyService->delete($property);
 
         if (!$result['status']) {
             return back()->with('error', $result['message']);
         }
 
+        // 2. Phản hồi
         return redirect()->route('manage.properties.index')->with('success', $result['message']);
     }
 }

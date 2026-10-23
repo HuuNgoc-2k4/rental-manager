@@ -4,6 +4,7 @@ namespace App\Repositories\Interfaces;
 
 use App\Models\Tenant;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 
 interface TenantRepositoryInterface extends BaseRepositoryInterface
 {
@@ -21,4 +22,19 @@ interface TenantRepositoryInterface extends BaseRepositoryInterface
      * @return bool
      */
     public function hasContractHistory(Tenant $tenant): bool;
+
+    /**
+     * Hồ sơ chưa thuộc hộ nào đang ở (để chọn khi cho thuê / thêm người).
+     *
+     * @return Collection
+     */
+    public function getWithoutLiveHousehold(): Collection;
+
+    /**
+     * Hồ sơ đang gắn với một tài khoản.
+     *
+     * @param int $userId
+     * @return Tenant|null
+     */
+    public function findByUserId(int $userId): ?Tenant;
 }

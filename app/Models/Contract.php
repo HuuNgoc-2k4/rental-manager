@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Contract\MemberApproval;
-use Database\Factories\ContractFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,9 +11,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['room_id', 'start_date', 'end_date', 'ended_at', 'status', 'note'])]
 class Contract extends Model
 {
-    /** @use HasFactory<ContractFactory> */
-    use HasFactory;
-
     /**
      * @return array<string, string>
      */
@@ -50,5 +45,15 @@ class Contract extends Model
         return $this->hasMany(ContractTenant::class)
             ->whereNull('left_at')
             ->where('approval_status', MemberApproval::Approved->value);
+    }
+
+    /**
+     * Người đang nằm trong hộ (chưa rời), kể cả chờ duyệt.
+     *
+     * @return HasMany
+     */
+    public function liveLinks(): HasMany
+    {
+        return $this->hasMany(ContractTenant::class)->whereNull('left_at')->orderByDesc('is_primary')->orderBy('id');
     }
 }

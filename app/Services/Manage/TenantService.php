@@ -19,9 +19,6 @@ use Illuminate\Support\Facades\Storage;
 
 class TenantService extends BaseService
 {
-    /** Disk private: ảnh CCCD không bao giờ nằm trong public/. */
-    public const DISK = 'local';
-
     /** Các trường định danh bị khóa sau khi hồ sơ được xác minh. */
     public const LOCKED_FIELDS = ['full_name', 'date_of_birth', 'gender', 'id_number', 'id_issued_date', 'id_issued_place', 'permanent_address'];
 
@@ -168,7 +165,7 @@ class TenantService extends BaseService
                 throw new BusinessException('Khách này đã có lịch sử thuê nên không thể xóa.', 'tenant_has_history');
             }
 
-            Storage::disk(self::DISK)->deleteDirectory("tenants/{$tenant->id}");
+            Storage::disk()->deleteDirectory("tenants/{$tenant->id}");
             $this->tenantRepository->delete($tenant);
             DB::commit();
 
@@ -272,13 +269,13 @@ class TenantService extends BaseService
     /**
      * @param Tenant $tenant
      * @param string $side front|back
-     * @return string|null Path trên disk private, null nếu chưa có ảnh
+     * @return string|null Path trên disk mặc định (private: local hoặc S3), null nếu chưa có ảnh
      */
     public function idImagePath(Tenant $tenant, string $side): ?string
     {
         $path = $side === 'front' ? $tenant->id_front_path : $tenant->id_back_path;
 
-        return $path && Storage::disk(self::DISK)->exists($path) ? $path : null;
+        return $path && Storage::disk()->exists($path) ? $path : null;
     }
 
     /**
@@ -299,10 +296,10 @@ class TenantService extends BaseService
             }
 
             if ($tenant->{$column}) {
-                Storage::disk(self::DISK)->delete($tenant->{$column});
+                Storage::disk()->delete($tenant->{$column});
             }
 
-            $tenant->{$column} = $file->store("tenants/{$tenant->id}", self::DISK);
+            $tenant->{$column} = $file->store("tenants/{$tenant->id}");
         }
 
         if ($tenant->isDirty()) {

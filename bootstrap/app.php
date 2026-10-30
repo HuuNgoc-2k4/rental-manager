@@ -19,8 +19,6 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/login');
-        // Heroku router đứng trước app: tin X-Forwarded-* để URL/cookie secure dùng đúng https.
-        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'check.status' => CheckUserStatus::class,
             'password.changed' => EnsurePasswordChanged::class,

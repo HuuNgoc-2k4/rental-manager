@@ -58,22 +58,6 @@ class ContractTenantRepository extends BaseRepository implements ContractTenantR
     }
 
     /**
-     * @param Contract $contract
-     * @param bool $includePending
-     * @return int
-     */
-    public function countLive(Contract $contract, bool $includePending): int
-    {
-        $query = $this->newQuery()->where('contract_id', $contract->id)->whereNull('left_at');
-
-        if (!$includePending) {
-            $query->where('approval_status', MemberApproval::Approved->value);
-        }
-
-        return $query->count();
-    }
-
-    /**
      * @param int $userId
      * @return ContractTenant|null
      */

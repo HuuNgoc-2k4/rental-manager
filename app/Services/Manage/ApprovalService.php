@@ -12,7 +12,6 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Repositories\Interfaces\ContractRepositoryInterface;
 use App\Repositories\Interfaces\ContractTenantRepositoryInterface;
-use App\Repositories\Interfaces\RoomRepositoryInterface;
 use App\Repositories\Interfaces\TenantRepositoryInterface;
 use App\Services\BaseService;
 use Illuminate\Database\Eloquent\Collection;
@@ -25,14 +24,12 @@ class ApprovalService extends BaseService
      * @param Contract $model
      * @param ContractTenantRepositoryInterface $linkRepository
      * @param ContractRepositoryInterface $contractRepository
-     * @param RoomRepositoryInterface $roomRepository
      * @param TenantRepositoryInterface $tenantRepository
      */
     public function __construct(
         Contract $model,
         protected ContractTenantRepositoryInterface $linkRepository,
         protected ContractRepositoryInterface $contractRepository,
-        protected RoomRepositoryInterface $roomRepository,
         protected TenantRepositoryInterface $tenantRepository
     ) {
         parent::__construct($model);
@@ -125,7 +122,7 @@ class ApprovalService extends BaseService
     }
 
     /**
-     * Duyệt người ở cùng; kiểm lại max_occupants (chỉ tính người đã duyệt cộng người này).
+     * Duyệt người ở cùng.
      *
      * @param ContractTenant $link
      * @return array{status: bool, message: string}
@@ -135,12 +132,7 @@ class ApprovalService extends BaseService
         try {
             DB::beginTransaction();
 
-            $contract = $this->assertPending($link);
-            $room = $this->roomRepository->findOrFail($contract->room_id);
-
-            if ($this->linkRepository->countLive($contract, false) + 1 > $room->max_occupants) {
-                throw new BusinessException("Phòng {$room->name} đã đủ {$room->max_occupants} người tối đa.", 'room_full');
-            }
+            $this->assertPending($link);
 
             $this->linkRepository->update($link, ['approval_status' => MemberApproval::Approved->value, 'reject_reason' => null]);
             DB::commit();

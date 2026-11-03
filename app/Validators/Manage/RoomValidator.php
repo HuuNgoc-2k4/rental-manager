@@ -3,6 +3,7 @@
 namespace App\Validators\Manage;
 
 use App\Enums\Meter\MeterType;
+use App\Enums\Property\FurnitureCondition;
 use App\Enums\Property\RoomStatus;
 use App\Models\Property;
 use App\Models\Room;
@@ -12,6 +13,8 @@ use Illuminate\Validation\Rules\Unique;
 
 class RoomValidator
 {
+    const MAX_FURNITURE_ITEMS = 60;
+
     /**
      * @param array $input
      * @param Property $property
@@ -19,22 +22,10 @@ class RoomValidator
      */
     public function storeValidator(array $input, Property $property)
     {
-        $rules = $this->roomRules(Rule::unique('rooms', 'name')->where('property_id', $property->id));
-
-        foreach (MeterType::values() as $type) {
-            $rules["{$type}_integer_digits"] = ['required', 'integer', 'between:1,10'];
-            $rules["{$type}_decimal_digits"] = ['required', 'integer', 'between:0,3'];
-            $rules["{$type}_initial_reading"] = ['required', 'numeric', 'min:0', 'max:9999999999'];
-        }
+        $rules = $this->roomRules(Rule::unique('rooms', 'name')->where('property_id', $property->id)) + $this->meterRules();
 
         $validator = Validator::make($input, $rules, $this->messages());
-
-        // Chỉ số đầu phải nằm trong số chữ số đã khai báo (VD 5 chữ số → tối đa 99999).
-        $validator->after(function ($v) use ($input) {
-            foreach (MeterType::cases() as $type) {
-                $this->checkReadingFitsDigits($v, $input, $type->value, $type->label());
-            }
-        });
+        $validator->after(fn ($v) => $this->checkAllReadings($v, $input));
 
         return $validator;
     }
@@ -46,11 +37,40 @@ class RoomValidator
      */
     public function updateValidator(array $input, Room $room)
     {
-        return Validator::make(
-            $input,
-            $this->roomRules(Rule::unique('rooms', 'name')->where('property_id', $room->property_id)->ignore($room->id)),
-            $this->messages()
-        );
+        // Form sửa luôn gửi đủ đồng hồ; field vắng mặt (gọi tay) thì bỏ qua, không bắt buộc.
+        $meterRules = array_map(fn (array $rule) => ['sometimes', ...$rule], $this->meterRules());
+        $rules = $this->roomRules(Rule::unique('rooms', 'name')->where('property_id', $room->property_id)->ignore($room->id)) + $meterRules;
+
+        $validator = Validator::make($input, $rules, $this->messages());
+        $validator->after(fn ($v) => $this->checkAllReadings($v, $input));
+
+        return $validator;
+    }
+
+    /**
+     * Checklist nội thất: danh sách món, mỗi món có tên, số lượng, hiện trạng.
+     *
+     * @param array $input
+     * @return \Illuminate\Validation\Validator
+     */
+    public function furnitureValidator(array $input)
+    {
+        return Validator::make($input, [
+            'furniture' => ['nullable', 'array', 'max:'.self::MAX_FURNITURE_ITEMS],
+            'furniture.*.name' => ['required', 'string', 'max:100'],
+            'furniture.*.quantity' => ['required', 'integer', 'between:1,99'],
+            'furniture.*.condition' => ['required', Rule::in(FurnitureCondition::values())],
+            'furniture.*.note' => ['nullable', 'string', 'max:255']
+        ], [
+            'furniture.max' => 'Tối đa '.self::MAX_FURNITURE_ITEMS.' món nội thất.',
+            'furniture.*.name.required' => 'Vui lòng nhập tên món nội thất.',
+            'furniture.*.name.max' => 'Tên món nội thất tối đa 100 ký tự.',
+            'furniture.*.quantity.required' => 'Vui lòng nhập số lượng.',
+            'furniture.*.quantity.between' => 'Số lượng từ 1 đến 99.',
+            'furniture.*.condition.required' => 'Vui lòng chọn hiện trạng.',
+            'furniture.*.condition.in' => 'Hiện trạng không hợp lệ.',
+            'furniture.*.note.max' => 'Ghi chú tối đa 255 ký tự.'
+        ]);
     }
 
     /**
@@ -102,6 +122,37 @@ class RoomValidator
     }
 
     /**
+     * @return array
+     */
+    private function meterRules(): array
+    {
+        $rules = [];
+        foreach (MeterType::values() as $type) {
+            $rules["{$type}_integer_digits"] = ['required', 'integer', 'between:1,10'];
+            $rules["{$type}_decimal_digits"] = ['required', 'integer', 'between:0,3'];
+            $rules["{$type}_initial_reading"] = ['required', 'numeric', 'min:0', 'max:9999999999'];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Chỉ số đầu phải nằm trong số chữ số đã khai báo (VD 5 chữ số → tối đa 99999), kiểm cho cả điện và nước.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @param array $input
+     * @return void
+     */
+    private function checkAllReadings($validator, array $input): void
+    {
+        foreach (MeterType::cases() as $type) {
+            if (isset($input["{$type->value}_integer_digits"], $input["{$type->value}_initial_reading"])) {
+                $this->checkReadingFitsDigits($validator, $input, $type->value, $type->label());
+            }
+        }
+    }
+
+    /**
      * @param \Illuminate\Validation\Validator $validator
      * @param array $input
      * @param string|null $prefix Tiền tố field (electric / water) hoặc null khi field không có tiền tố
@@ -131,9 +182,8 @@ class RoomValidator
     {
         return [
             'name' => ['required', 'string', 'max:50', $uniqueName],
-            'floor' => ['nullable', 'integer', 'between:-5,100'],
+            'room_type' => ['nullable', 'string', 'max:50'],
             'area' => ['nullable', 'numeric', 'min:1', 'max:9999'],
-            'max_occupants' => ['required', 'integer', 'between:1,20'],
             'base_rent' => ['required', 'integer', 'min:0', 'max:100000000000'],
             'note' => ['nullable', 'string', 'max:2000']
         ];
@@ -148,12 +198,9 @@ class RoomValidator
             'name.required' => 'Vui lòng nhập tên / số phòng.',
             'name.max' => 'Tên phòng tối đa 50 ký tự.',
             'name.unique' => 'Khu này đã có phòng trùng tên.',
-            'floor.integer' => 'Tầng phải là số nguyên.',
-            'floor.between' => 'Tầng không hợp lệ.',
+            'room_type.max' => 'Loại phòng tối đa 50 ký tự.',
             'area.numeric' => 'Diện tích phải là số.',
             'area.min' => 'Diện tích tối thiểu 1 m².',
-            'max_occupants.required' => 'Vui lòng nhập số người tối đa.',
-            'max_occupants.between' => 'Số người tối đa từ 1 đến 20.',
             'base_rent.required' => 'Vui lòng nhập giá thuê.',
             'base_rent.integer' => 'Giá thuê phải là số nguyên (VND).',
             'base_rent.min' => 'Giá thuê không được âm.',

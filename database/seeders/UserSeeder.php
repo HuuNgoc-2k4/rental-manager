@@ -15,9 +15,9 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $accounts = [
-            ['name' => 'Quản trị viên', 'email' => 'admin@rental.test', 'phone' => '0900000001', 'role' => UserRole::Admin],
-            ['name' => 'Chủ hộ Nguyễn Văn A', 'email' => 'owner@rental.test', 'phone' => '0900000002', 'role' => UserRole::Owner],
-            ['name' => 'Thành viên Trần Thị B', 'email' => 'member@rental.test', 'phone' => '0900000003', 'role' => UserRole::Member]
+            ['name' => 'Quản trị viên', 'email' => 'admin@gmail.com', 'phone' => '0987654321', 'role' => UserRole::Admin],
+            ['name' => 'Chủ hộ Nguyễn Văn A', 'email' => 'owner@gmail.com', 'phone' => '0987654322', 'role' => UserRole::Owner],
+            ['name' => 'Thành viên Trần Thị B', 'email' => 'member@gmail.com', 'phone' => '0987654323', 'role' => UserRole::Member]
         ];
 
         foreach ($accounts as $account) {

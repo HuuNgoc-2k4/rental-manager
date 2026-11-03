@@ -9,9 +9,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['property_id', 'name', 'floor', 'area', 'max_occupants', 'base_rent', 'status', 'note'])]
+#[Fillable(['property_id', 'name', 'room_type', 'area', 'furniture', 'base_rent', 'status', 'note'])]
 class Room extends Model
 {
+    /** Gợi ý loại phòng và món nội thất phổ biến khi nhập (vẫn nhập tự do được). */
+    const ROOM_TYPE_SUGGESTIONS = ['Phòng đơn', 'Có gác lửng', 'Studio', 'Căn hộ mini'];
+
+    const FURNITURE_SUGGESTIONS = ['Điều hòa', 'Bình nóng lạnh', 'Giường', 'Nệm', 'Tủ quần áo', 'Bàn học', 'Quạt', 'Tủ lạnh', 'Máy giặt', 'Bếp', 'Kệ bếp', 'Rèm cửa', 'Khóa cửa'];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return ['furniture' => 'array'];
+    }
+
     /**
      * @return BelongsTo
      */

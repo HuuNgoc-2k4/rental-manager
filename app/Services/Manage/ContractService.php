@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Hộ thuê = hợp đồng (khung T1). Giữ các bất biến: 1 hợp đồng hiệu lực / phòng, 1 người chỉ ở 1 hộ,
- * đúng 1 chủ hộ, số người ≤ max_occupants.
+ * đúng 1 chủ hộ. Phòng không giới hạn số người ở.
  */
 class ContractService extends BaseService
 {
@@ -118,7 +118,6 @@ class ContractService extends BaseService
 
     /**
      * Thêm người ở cùng. Admin thêm thì duyệt luôn; chủ hộ thêm thì chờ admin duyệt.
-     * Chặn ngay khi số người (kể cả đang chờ duyệt) đã chạm max_occupants.
      *
      * @param Contract $contract
      * @param array $data tenant_id | full_name + phone (+ thông tin khai hộ)
@@ -133,11 +132,6 @@ class ContractService extends BaseService
 
             if (!ContractStatus::isActive($contract->status)) {
                 throw new BusinessException('Hợp đồng đã kết thúc, không thể thêm người.', 'contract_ended');
-            }
-
-            $room = $this->roomRepository->findOrFail($contract->room_id);
-            if ($this->linkRepository->countLive($contract, true) >= $room->max_occupants) {
-                throw new BusinessException("Phòng {$room->name} đã đủ {$room->max_occupants} người tối đa.", 'room_full');
             }
 
             $tenant = $this->resolveTenant($data, $actor, $files);

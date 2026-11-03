@@ -34,15 +34,6 @@ interface ContractTenantRepositoryInterface extends BaseRepositoryInterface
     public function findAnyLink(int $contractId, int $tenantId): ?ContractTenant;
 
     /**
-     * Số người trong hộ chưa rời.
-     *
-     * @param Contract $contract
-     * @param bool $includePending false = chỉ tính người đã duyệt
-     * @return int
-     */
-    public function countLive(Contract $contract, bool $includePending): int;
-
-    /**
      * Dòng hộ đang ở của người đăng nhập (users → tenants.user_id → contract_tenants chưa rời, hợp đồng hiệu lực).
      * Đây là nguồn DUY NHẤT xác định "hộ của tôi"; không bao giờ lấy contract_id từ request.
      *

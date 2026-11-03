@@ -32,9 +32,7 @@ class PropertySeeder extends Seeder
                     $room = Room::query()->firstOrCreate(
                         ['property_id' => $property->id, 'name' => $item['prefix'].($floor * 100 + $index)],
                         [
-                            'floor' => $floor,
                             'area' => 22 + $index * 3,
-                            'max_occupants' => 2 + ($index % 2),
                             'base_rent' => 2500000 + $floor * 200000,
                             'status' => RoomStatus::Vacant->value
                         ]

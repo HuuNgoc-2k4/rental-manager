@@ -2,7 +2,6 @@
 
 namespace App\Repositories;
 
-use App\Models\Property;
 use App\Models\Room;
 use App\Repositories\Interfaces\RoomRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,17 +17,25 @@ class RoomRepository extends BaseRepository implements RoomRepositoryInterface
     }
 
     /**
-     * @param Property $property
      * @return Collection
      */
-    public function getForMap(Property $property): Collection
+    public function getOverview(): Collection
     {
         return $this->newQuery()
-            ->where('property_id', $property->id)
-            ->with(['currentMeters', 'activeContract.residents.tenant', 'activeContract.liveLinks.tenant.user'])
-            ->orderBy('floor')
+            ->with(['activeContract.residents.tenant', 'activeContract.document'])
+            // Độ dài trước để 201 đứng trước 1001.
+            ->orderByRaw('LENGTH(name)')
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * @param Room $room
+     * @return Room
+     */
+    public function loadDetail(Room $room): Room
+    {
+        return $room->load(['property', 'currentMeters', 'activeContract.liveLinks.tenant', 'activeContract.document']);
     }
 
     /**
@@ -47,14 +54,5 @@ class RoomRepository extends BaseRepository implements RoomRepositoryInterface
     public function hasActiveContract(Room $room): bool
     {
         return $room->activeContract()->exists();
-    }
-
-    /**
-     * @param Room $room
-     * @return int
-     */
-    public function countResidents(Room $room): int
-    {
-        return (int) $room->activeContract()->first()?->residents()->count();
     }
 }

@@ -1,19 +1,18 @@
 @php
     $isAdminUser = Auth::user()->isAdmin();
 
-    // Mục đơn: [gate, route, mẫu routeIs, icon, nhãn]; nhóm có submenu: ['group' => id, 'icon', 'label', 'items' => [[gate, route, mẫu routeIs, icon, nhãn, badge]]]
+    // Mục đơn: [gate, route, mẫu routeIs, icon, nhãn, badge]; nhóm có submenu: ['group' => id, 'icon', 'label', 'items' => [[gate, route, mẫu routeIs, icon, nhãn, badge]]]
     $navEntries = [
-        [null, 'dashboard', 'dashboard', $isAdminUser ? 'layout-dashboard' : 'door-open', $isAdminUser ? 'Tổng quan' : 'Phòng của tôi'],
-        ['access-member-portal', 'member.profile.edit', 'member.profile.*', 'id-card', 'Hồ sơ của tôi'],
-        ['group' => 'rental-menu', 'gate' => 'manage-rental', 'icon' => 'building-2', 'label' => 'Quản lý nhà trọ', 'items' => [
-            ['manage-rental', 'manage.properties.index', 'manage.properties.*', 'layout-grid', 'Khu trọ & phòng', 0],
-            ['manage-rental', 'manage.tenants.index', 'manage.tenants.*', 'contact', 'Khách thuê', 0],
-            ['manage-rental', 'manage.approvals.index', 'manage.approvals.*', 'clipboard-check', 'Chờ duyệt', $pendingApprovalCount ?? 0]
-        ]],
-        ['is-admin', 'admin.users.index', 'admin.users.*', 'users', 'Người dùng']
+        [null, 'dashboard', 'dashboard', $isAdminUser ? 'layout-dashboard' : 'door-open', $isAdminUser ? 'Tổng quan' : 'Phòng của tôi', 0],
+        ['access-member-portal', 'member.contract.show', 'member.contract.*', 'file-signature', 'Hợp đồng thuê', 0],
+        ['access-member-portal', 'member.profile.edit', 'member.profile.*', 'id-card', 'Hồ sơ của tôi', 0],
+        // Hợp đồng thao tác trong chi tiết phòng nên trang hợp đồng cũng sáng mục "Phòng trọ"
+        ['manage-rental', 'manage.rooms.index', ['manage.rooms.*', 'manage.contracts.*'], 'door-open', 'Phòng trọ', 0],
+        ['manage-rental', 'manage.tenants.index', 'manage.tenants.*', 'contact', 'Thành viên', $pendingApprovalCount ?? 0],
+        ['is-admin', 'admin.users.index', 'admin.users.*', 'users', 'Người dùng', 0]
     ];
     // Phân hệ trong đề tài nhưng chưa làm — gom một nhóm mờ để chủ nhà biết lộ trình.
-    $upcomingModules = [['file-signature', 'Hợp đồng thuê'], ['gauge', 'Chốt chỉ số'], ['receipt-text', 'Hóa đơn & công nợ']];
+    $upcomingModules = [['gauge', 'Chốt chỉ số'], ['receipt-text', 'Hóa đơn & công nợ']];
 
     $itemClass = fn (bool $active) => $active ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 font-semibold hover:bg-slate-50 hover:text-slate-900';
     $subItemClass = fn (bool $active) => $active ? 'text-indigo-700 font-bold bg-indigo-50/60' : 'text-slate-500 font-medium hover:text-indigo-600 hover:bg-slate-50';
@@ -81,6 +80,9 @@
                    class="flex items-center gap-3 min-h-[44px] px-3 rounded-xl text-[13px] transition-all {{ $itemClass(request()->routeIs($entry[2])) }}">
                     <i data-lucide="{{ $entry[3] }}" class="w-5 h-5 shrink-0"></i>
                     <span class="flex-1 min-w-0 break-words">{{ $entry[4] }}</span>
+                    @if($entry[5] > 0)
+                        <span class="min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">{{ $entry[5] > 99 ? '99+' : $entry[5] }}</span>
+                    @endif
                 </a>
             @endif
         @endforeach

@@ -33,12 +33,20 @@ class RoomService extends BaseService
     }
 
     /**
-     * @param Property $property
      * @return Collection
      */
-    public function getForMap(Property $property): Collection
+    public function getOverview(): Collection
     {
-        return $this->roomRepository->getForMap($property);
+        return $this->roomRepository->getOverview();
+    }
+
+    /**
+     * @param Room $room
+     * @return Room
+     */
+    public function getDetail(Room $room): Room
+    {
+        return $this->roomRepository->loadDetail($room);
     }
 
     /**
@@ -81,8 +89,6 @@ class RoomService extends BaseService
     }
 
     /**
-     * Không cho hạ số người tối đa xuống thấp hơn số người đang ở.
-     *
      * @param Room $room
      * @param array $data
      * @return array{status: bool, message: string}
@@ -92,23 +98,53 @@ class RoomService extends BaseService
         try {
             DB::beginTransaction();
 
-            if ((int) $data['max_occupants'] < $this->roomRepository->countResidents($room)) {
-                throw new BusinessException('Số người tối đa không được thấp hơn số người đang ở.', 'max_occupants_too_low');
+            $this->roomRepository->update($room, $this->payload($data));
+
+            foreach (MeterType::values() as $type) {
+                if (isset($data["{$type}_integer_digits"])) {
+                    $this->syncCurrentMeter($room, $type, $data);
+                }
             }
 
-            $this->roomRepository->update($room, $this->payload($data));
             DB::commit();
 
             return ['status' => true, 'message' => 'Đã cập nhật phòng.'];
-        } catch (BusinessException $e) {
-            DB::rollBack();
-
-            return ['status' => false, 'message' => $e->getMessage()];
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Update room error: '.$e->getMessage());
 
             return ['status' => false, 'message' => 'Có lỗi xảy ra khi cập nhật phòng.'];
+        }
+    }
+
+    /**
+     * Lưu cả checklist nội thất một lần (thay toàn bộ danh sách cũ).
+     *
+     * @param Room $room
+     * @param array $items [{name, quantity, condition, note}]
+     * @return array{status: bool, message: string}
+     */
+    public function updateFurniture(Room $room, array $items): array
+    {
+        try {
+            DB::beginTransaction();
+
+            $this->roomRepository->update($room, [
+                'furniture' => array_map(fn (array $item) => [
+                    'name' => trim($item['name']),
+                    'quantity' => (int) $item['quantity'],
+                    'condition' => $item['condition'],
+                    'note' => filled($item['note'] ?? null) ? trim($item['note']) : null
+                ], array_values($items))
+            ]);
+            DB::commit();
+
+            return ['status' => true, 'message' => 'Đã lưu nội thất và hiện trạng phòng.'];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Update room furniture error: '.$e->getMessage());
+
+            return ['status' => false, 'message' => 'Có lỗi xảy ra khi lưu nội thất.'];
         }
     }
 
@@ -214,6 +250,30 @@ class RoomService extends BaseService
     }
 
     /**
+     * Sửa tại chỗ đồng hồ đang dùng (đổi số chữ số / chỉ số đầu); phòng chưa có thì tạo mới.
+     *
+     * @param Room $room
+     * @param string $type
+     * @param array $data
+     * @return void
+     */
+    private function syncCurrentMeter(Room $room, string $type, array $data): void
+    {
+        $values = [
+            'integer_digits' => $data["{$type}_integer_digits"],
+            'decimal_digits' => $data["{$type}_decimal_digits"],
+            'initial_reading' => $data["{$type}_initial_reading"]
+        ];
+        $current = $this->meterRepository->findCurrent($room->id, $type);
+
+        if ($current) {
+            $this->meterRepository->update($current, $values);
+        } else {
+            $this->meterRepository->create($values + ['room_id' => $room->id, 'type' => $type, 'installed_at' => now()->toDateString()]);
+        }
+    }
+
+    /**
      * @param array $data
      * @return array
      */
@@ -221,9 +281,8 @@ class RoomService extends BaseService
     {
         return [
             'name' => trim($data['name']),
-            'floor' => $data['floor'] ?? null,
+            'room_type' => $data['room_type'] ?? null,
             'area' => $data['area'] ?? null,
-            'max_occupants' => $data['max_occupants'],
             'base_rent' => $data['base_rent'],
             'note' => $data['note'] ?? null
         ];

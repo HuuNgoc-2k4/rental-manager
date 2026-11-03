@@ -2,14 +2,10 @@
 
 namespace App\Http\Controllers\Manage;
 
-use App\Enums\Property\RoomStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Property;
 use App\Services\Manage\PropertyService;
-use App\Services\Manage\RoomService;
-use App\Services\Manage\TenantService;
 use App\Validators\Manage\PropertyValidator;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -17,50 +13,16 @@ class PropertyController extends Controller
 {
     protected PropertyService $propertyService;
 
-    protected RoomService $roomService;
-
     protected PropertyValidator $propertyValidator;
-
-    protected TenantService $tenantService;
 
     /**
      * @param PropertyService $propertyService
-     * @param RoomService $roomService
      * @param PropertyValidator $propertyValidator
-     * @param TenantService $tenantService
      */
-    public function __construct(PropertyService $propertyService, RoomService $roomService, PropertyValidator $propertyValidator, TenantService $tenantService)
+    public function __construct(PropertyService $propertyService, PropertyValidator $propertyValidator)
     {
-        $this->tenantService = $tenantService;
         $this->propertyService = $propertyService;
-        $this->roomService = $roomService;
         $this->propertyValidator = $propertyValidator;
-    }
-
-    /**
-     * @return View
-     */
-    public function index()
-    {
-        $properties = $this->propertyService->getList();
-
-        return view('manage.properties.index', compact('properties'));
-    }
-
-    /**
-     * Sơ đồ phòng của một khu.
-     *
-     * @param Property $property
-     * @return View
-     */
-    public function show(Property $property)
-    {
-        $rooms = $this->roomService->getForMap($property);
-        $floors = $rooms->groupBy(fn ($room) => $room->floor ?? 'none')->sortKeys();
-        $statuses = RoomStatus::cases();
-        $availableTenants = $this->tenantService->getAvailable();
-
-        return view('manage.properties.show', compact('property', 'rooms', 'floors', 'statuses', 'availableTenants'));
     }
 
     /**
@@ -120,6 +82,6 @@ class PropertyController extends Controller
         }
 
         // 2. Phản hồi
-        return redirect()->route('manage.properties.index')->with('success', $result['message']);
+        return redirect()->route('manage.rooms.index')->with('success', $result['message']);
     }
 }

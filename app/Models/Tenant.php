@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['user_id', 'full_name', 'phone', 'email', 'date_of_birth', 'gender', 'id_number', 'id_issued_date', 'id_issued_place', 'permanent_address', 'occupation', 'id_front_path', 'id_back_path', 'info_status', 'info_reject_reason', 'info_verified_at', 'info_verified_by', 'note'])]
 class Tenant extends Model
@@ -33,6 +34,16 @@ class Tenant extends Model
     public function contractTenants(): HasMany
     {
         return $this->hasMany(ContractTenant::class);
+    }
+
+    /**
+     * Chỗ ở hiện tại (chưa rời, gồm cả đang chờ duyệt) — mỗi người tối đa 1 theo bất biến của service.
+     *
+     * @return HasOne
+     */
+    public function liveLink(): HasOne
+    {
+        return $this->hasOne(ContractTenant::class)->whereNull('left_at');
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Enums\Tenant\Gender;
 use App\Enums\Tenant\TenantInfoStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Services\Manage\ApprovalService;
 use App\Services\Manage\TenantService;
 use App\Validators\Manage\TenantValidator;
 use Illuminate\Contracts\View\View;
@@ -24,17 +25,23 @@ class TenantController extends Controller
 
     protected TenantValidator $tenantValidator;
 
+    protected ApprovalService $approvalService;
+
     /**
      * @param TenantService $tenantService
      * @param TenantValidator $tenantValidator
+     * @param ApprovalService $approvalService
      */
-    public function __construct(TenantService $tenantService, TenantValidator $tenantValidator)
+    public function __construct(TenantService $tenantService, TenantValidator $tenantValidator, ApprovalService $approvalService)
     {
         $this->tenantService = $tenantService;
         $this->tenantValidator = $tenantValidator;
+        $this->approvalService = $approvalService;
     }
 
     /**
+     * Danh sách thành viên kèm vai trò, phòng và các mục chờ chủ nhà duyệt.
+     *
      * @param Request $request
      * @return View
      */
@@ -43,8 +50,10 @@ class TenantController extends Controller
         $tenants = $this->tenantService->getList($request);
         $genders = Gender::cases();
         $infoStatuses = TenantInfoStatus::cases();
+        $pendingMembers = $this->approvalService->getPendingMembers();
+        $declarations = $this->approvalService->getSubmittedDeclarations();
 
-        return view('manage.tenants.index', compact('tenants', 'genders', 'infoStatuses'));
+        return view('manage.tenants.index', compact('tenants', 'genders', 'infoStatuses', 'pendingMembers', 'declarations'));
     }
 
     /**

@@ -89,7 +89,7 @@
                             ['bg-amber-400', $property->maintenance_rooms_count]
                         ];
                     @endphp
-                    <a href="{{ route('manage.properties.show', $property) }}" class="block px-5 py-4 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/70 transition-colors">
+                    <a href="{{ route('manage.rooms.index').'#property-'.$property->id }}" class="block px-5 py-4 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/70 transition-colors">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="font-bold text-slate-800 break-words">{{ $property->name }}</p>
@@ -120,7 +120,7 @@
                             <i data-lucide="building-2" class="w-6 h-6 text-slate-400"></i>
                         </div>
                         <p class="text-sm font-bold text-slate-700">Chưa có khu trọ nào</p>
-                        <a href="{{ route('manage.properties.index') }}" class="btn btn-soft mt-4"><i data-lucide="plus" class="w-4 h-4"></i> Thêm khu đầu tiên</a>
+                        <a href="{{ route('manage.rooms.index') }}" class="btn btn-soft mt-4"><i data-lucide="plus" class="w-4 h-4"></i> Thêm khu đầu tiên</a>
                     </div>
                 @endforelse
             </div>
@@ -141,7 +141,7 @@
 
                 <div class="divide-y divide-slate-50">
                     @foreach($pendingMembers->take(4) as $link)
-                        <a href="{{ route('manage.approvals.index') }}" class="flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-slate-50/70 transition-colors">
+                        <a href="{{ route('manage.tenants.index').'#approvals' }}" class="flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-slate-50/70 transition-colors">
                             @include('partials.avatar', ['name' => $link->tenant->full_name, 'size' => 'w-9 h-9 text-xs'])
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-bold text-slate-800 break-words">{{ $link->tenant->full_name }}</p>
@@ -151,7 +151,7 @@
                         </a>
                     @endforeach
                     @foreach($declarations->take(4) as $tenant)
-                        <a href="{{ route('manage.approvals.index') }}" class="flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-slate-50/70 transition-colors">
+                        <a href="{{ route('manage.tenants.index').'#approvals' }}" class="flex items-center gap-3 px-5 py-3 min-h-[56px] hover:bg-slate-50/70 transition-colors">
                             @include('partials.avatar', ['name' => $tenant->full_name, 'size' => 'w-9 h-9 text-xs'])
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-bold text-slate-800 break-words">{{ $tenant->full_name }}</p>
@@ -173,8 +173,8 @@
                 </div>
 
                 @if($pendingTotal > 0)
-                    <a href="{{ route('manage.approvals.index') }}" class="flex items-center justify-center gap-2 min-h-[48px] border-t border-slate-100 text-xs font-bold text-indigo-600 uppercase tracking-wider hover:bg-indigo-50/50">
-                        Mở trang duyệt <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    <a href="{{ route('manage.tenants.index').'#approvals' }}" class="flex items-center justify-center gap-2 min-h-[48px] border-t border-slate-100 text-xs font-bold text-indigo-600 uppercase tracking-wider hover:bg-indigo-50/50">
+                        Duyệt ở trang Thành viên <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </a>
                 @endif
             </div>

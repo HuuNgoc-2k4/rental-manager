@@ -2,19 +2,25 @@
 
 namespace App\Repositories\Interfaces;
 
-use App\Models\Property;
 use App\Models\Room;
 use Illuminate\Database\Eloquent\Collection;
 
 interface RoomRepositoryInterface extends BaseRepositoryInterface
 {
     /**
-     * Phòng của một khu kèm đồng hồ đang dùng và hộ đang ở (cho sơ đồ phòng).
+     * Tất cả phòng kèm hộ đang ở và văn bản hợp đồng (cho danh sách phòng).
      *
-     * @param Property $property
      * @return Collection
      */
-    public function getForMap(Property $property): Collection;
+    public function getOverview(): Collection;
+
+    /**
+     * Nạp đủ dữ liệu cho trang chi tiết phòng.
+     *
+     * @param Room $room
+     * @return Room
+     */
+    public function loadDetail(Room $room): Room;
 
     /**
      * @param Room $room
@@ -27,12 +33,4 @@ interface RoomRepositoryInterface extends BaseRepositoryInterface
      * @return bool
      */
     public function hasActiveContract(Room $room): bool;
-
-    /**
-     * Số người đang ở (đã duyệt, chưa rời) của hợp đồng hiệu lực.
-     *
-     * @param Room $room
-     * @return int
-     */
-    public function countResidents(Room $room): int;
 }

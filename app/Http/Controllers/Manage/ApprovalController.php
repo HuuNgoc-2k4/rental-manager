@@ -7,7 +7,6 @@ use App\Models\ContractTenant;
 use App\Models\Tenant;
 use App\Services\Manage\ApprovalService;
 use App\Validators\Manage\ApprovalValidator;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,17 +25,6 @@ class ApprovalController extends Controller
     {
         $this->approvalService = $approvalService;
         $this->approvalValidator = $approvalValidator;
-    }
-
-    /**
-     * @return View
-     */
-    public function index()
-    {
-        $pendingMembers = $this->approvalService->getPendingMembers();
-        $declarations = $this->approvalService->getSubmittedDeclarations();
-
-        return view('manage.approvals.index', compact('pendingMembers', 'declarations'));
     }
 
     /**

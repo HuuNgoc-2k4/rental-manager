@@ -46,13 +46,35 @@ Hợp đồng  →  Chốt chỉ số  →  Hoá đơn kỳ  →  Phiếu thu  �
 ## 3. Khối lượng chức năng — tám module
 
 ### 01. Nhà & phòng
-Nhiều khu trọ, mỗi khu nhiều phòng: giá thuê mặc định, diện tích, số người tối đa, trạng thái trống / đã thuê / đang sửa. Sơ đồ phòng nhìn một phát thấy phòng nào trống.
+Nhiều khu trọ, mỗi khu nhiều phòng: giá thuê mặc định, diện tích, loại phòng, checklist nội thất kèm hiện trạng từng món (tốt / cũ / hỏng), trạng thái trống / đã thuê / đang sửa. Không chia tầng (số phòng đã thể hiện tầng) và không giới hạn số người ở. Sơ đồ phòng nhìn một phát thấy phòng nào trống.
+
+**Đã làm — menu "Phòng trọ"** (admin). Menu admin chỉ còn 2 mục nghiệp vụ: **Phòng trọ** và **Thành viên** (cộng Tổng quan, Người dùng).
+
+| Trang | Route | Nội dung |
+|---|---|---|
+| Danh sách phòng | `manage.rooms.index` | Mọi phòng, gom theo khu, mỗi phòng một dòng (không chia tầng); lọc trạng thái và lọc khu (phía client). Cột: phòng, loại phòng, diện tích, trạng thái, người thuê, số người ở (chỉ hiện khi có hợp đồng), tình trạng văn bản HĐ, nội thất (số món + số món hỏng), giá niêm yết. Thêm / sửa / xóa khu và thêm phòng cũng ở đây (không còn trang khu riêng). |
+| Chi tiết phòng | `manage.rooms.show` | Hộ đang thuê (chủ hộ, thành viên, thông tin cá nhân cơ bản, cấp TK, rời đi, thêm người, trả phòng) · Hợp đồng (lập / xem / sửa / tải PDF-Word) · Thông tin phòng · Đồng hồ · Thao tác (sửa phòng, đổi trạng thái, xóa). Phòng trống thì có "Cho thuê phòng". |
+
+Khối **Thông tin phòng** (`partials/room-info`) dùng chung cho admin và cổng hộ thuê. Giá thuê, cọc, đơn giá điện nước, dịch vụ chỉ có trên văn bản hợp đồng (phòng chỉ có `base_rent`), nên: có văn bản người xem được thấy → lấy theo văn bản; chưa có → giá niêm yết. Người thuê không có danh sách phòng: "Phòng của tôi" chỉ hiện phòng suy ra từ tài khoản đăng nhập.
 
 ### 02. Khách thuê
 Thông tin liên hệ, giấy tờ, người ở cùng, lịch sử từng thuê phòng nào. Một khách có thể thuê lại nhiều lần.
 
+**Đã làm — menu "Thành viên"** (`manage.tenants.*`, tên route giữ nguyên). Mỗi người hiện vai trò suy từ chỗ ở hiện tại (`contract_tenants` chưa rời): Chủ hộ / Thành viên / Chờ duyệt vào phòng / Chưa ở phòng nào — không lấy `users.role` vì người chưa có tài khoản vẫn có vai trò. Kèm phòng đang ở (link sang chi tiết phòng), liên hệ, CCCD che, trạng thái khai báo, tài khoản. Việc chờ duyệt (người ở cùng do chủ hộ đề xuất, khai báo thông tin) hiện ở đầu trang này; badge số việc chờ gắn vào mục menu Thành viên.
+
 ### 03. Hợp đồng thuê
 Ngày bắt đầu / kết thúc, tiền cọc, giá thuê chốt riêng cho hợp đồng này, đơn giá điện nước, danh sách phí cố định (rác, xe, internet), chu kỳ thanh toán. Gia hạn, kết thúc sớm, đổi phòng. In hợp đồng ra PDF.
+
+**Đã làm — văn bản hợp đồng** (bảng `contract_documents`, 1 văn bản / hợp đồng):
+
+| Bước | Ai | Nội dung |
+|---|---|---|
+| Lập | Admin | Bấm "Lập hợp đồng" ở chi tiết phòng (không còn trang danh sách hợp đồng riêng; tình trạng HĐ hiện trên dòng phòng). Tự điền Bên B = chủ hộ, người ở cùng = thành viên đã duyệt và đang ở, phòng + giá thuê từ phòng, cọc = 1 tháng tiền thuê. Bên A, đơn giá điện nước, phí cố định, hạn thanh toán lấy lại từ văn bản gần nhất (văn bản đầu tiên dùng mặc định trong `ContractDocumentService`). |
+| Sửa | Admin | Sửa mọi trường; "Cập nhật theo hồ sơ" lấy lại Bên B / người ở cùng / phòng, giữ giá và điều khoản đã sửa. Mỗi lần sửa đưa văn bản về **nháp**. |
+| Duyệt | Chủ hộ | Thấy văn bản từ khi được gửi (chờ duyệt). Đồng ý → **đã duyệt**, khóa sửa; hoặc yêu cầu sửa kèm lý do → admin sửa và gửi lại. Duyệt kèm phiên bản (`updated_at`) đã xem: admin sửa trong lúc đó thì bị chặn. |
+| In / xem | Admin / thành viên | Chỉ bản đã duyệt mới tải PDF (mPDF, font FreeSerif) và Word (HTML đuôi `.doc`, cùng template `contracts/document`). Thành viên chỉ xem bản đã duyệt. |
+
+Văn bản là **bản chụp**: đổi hồ sơ khách hay giá phòng về sau không đổi văn bản đã lập. Không xóa văn bản; sai thì sửa (khi chưa duyệt). Đơn giá điện nước, phí cố định trên văn bản đã duyệt là nguồn tính hóa đơn kỳ (module 05).
 
 ### 04. Chốt chỉ số
 Mỗi kỳ, mỗi phòng: chỉ số điện và nước đầu kỳ / cuối kỳ, tiêu thụ tự tính. Kèm ảnh đồng hồ làm bằng chứng.
@@ -64,6 +86,12 @@ Sinh tự động từ hợp đồng + chỉ số: tiền phòng, điện, nư�
 
 ### 06. Thu tiền & công nợ
 Phiếu thu từng phần, số dư còn nợ, lịch sử thanh toán. Tất toán khi trả phòng: trừ nợ và hư hỏng vào cọc, trả lại phần còn. Bảng công nợ quá hạn theo số ngày.
+
+**Hướng gắn công nợ vào chi tiết phòng (giai đoạn sau):**
+- Hóa đơn gắn `contract_id` (không gắn `room_id`): đổi hộ thì công nợ đi theo hộ cũ, phòng sạch nợ cho hộ mới; trả phòng xong hộ vẫn đăng nhập xem nợ (tài khoản không bị khóa khi checkout).
+- Nguồn số liệu: đơn giá điện nước + phí cố định lấy từ văn bản hợp đồng **đã duyệt** (`contract_documents`), tiêu thụ lấy từ chốt chỉ số theo `room_meters` (đồng hồ thay giữa kỳ thì cộng 2 đoạn). Chưa có văn bản đã duyệt thì chưa sinh hóa đơn.
+- Chỗ chèn: trang `manage/rooms/show` có sẵn vị trí (comment "Công nợ") giữa Đồng hồ và Thao tác khác → thêm partial thẻ công nợ của hợp đồng đang hiệu lực (tổng nợ, hóa đơn chưa thu, nút lập phiếu thu). Ô phòng ở danh sách thêm chấm báo nợ quá hạn. Cổng hộ thuê thay khối "Sắp ra mắt" ở "Phòng của tôi" bằng cùng partial, ẩn nút thao tác.
+- Query công nợ đặt ở repository riêng (invoice / payment), nạp kèm khi `RoomRepository::loadDetail`; danh sách phòng chỉ cần một `withSum` số nợ để tránh N+1.
 
 ### 07. Nhắc tự động
 Cron chạy hàng ngày: tới ngày thu thì gửi thông báo tiền phòng, quá hạn thì nhắc lại, hợp đồng gần hết hạn thì báo trước. Gửi qua Telegram hoặc email, có log để biết ai đã được nhắc.

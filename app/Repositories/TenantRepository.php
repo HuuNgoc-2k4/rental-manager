@@ -27,7 +27,7 @@ class TenantRepository extends BaseRepository implements TenantRepositoryInterfa
      */
     public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {
-        $query = $this->newQuery();
+        $query = $this->newQuery()->with('liveLink.contract.room.property');
 
         if (!empty($filters['keyword'])) {
             $keyword = '%'.$filters['keyword'].'%';

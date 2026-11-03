@@ -5,12 +5,12 @@
     $bottomItems = Auth::user()->isAdmin()
         ? [
             ['dashboard', 'dashboard', 'layout-dashboard', 'Tổng quan', 0],
-            ['manage.properties.index', 'manage.properties.*', 'building-2', 'Khu trọ', 0],
-            ['manage.tenants.index', 'manage.tenants.*', 'contact', 'Khách thuê', 0],
-            ['manage.approvals.index', 'manage.approvals.*', 'clipboard-check', 'Duyệt', $pendingApprovalCount ?? 0]
+            ['manage.rooms.index', ['manage.rooms.*', 'manage.contracts.*'], 'door-open', 'Phòng trọ', 0],
+            ['manage.tenants.index', 'manage.tenants.*', 'contact', 'Thành viên', $pendingApprovalCount ?? 0]
         ]
         : [
             ['dashboard', 'dashboard', 'door-open', 'Phòng', 0],
+            ['member.contract.show', 'member.contract.*', 'file-signature', 'Hợp đồng', 0],
             ['member.profile.edit', 'member.profile.*', 'id-card', 'Hồ sơ', 0],
             ['password.edit', 'password.*', 'key-round', 'Mật khẩu', 0]
         ];

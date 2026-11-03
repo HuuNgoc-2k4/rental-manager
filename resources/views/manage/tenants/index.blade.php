@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Khách thuê')
-@section('subtitle', 'Hồ sơ cá nhân của khách. Tài khoản đăng nhập chỉ được cấp cho người đã có phòng.')
+@section('title', 'Thành viên')
+@section('subtitle', 'Người thuê: vai trò trong hộ, phòng đang ở và hồ sơ cá nhân. Việc chờ duyệt nằm ở đầu trang.')
 
 @section('page_actions')
     <button type="button" onclick="window.openTenantDrawer()" class="btn btn-primary w-full sm:w-auto">
-        <i data-lucide="user-plus" class="w-4 h-4"></i> Thêm khách
+        <i data-lucide="user-plus" class="w-4 h-4"></i> Thêm thành viên
     </button>
 @endsection
 
@@ -30,12 +30,27 @@
         'status_color' => \App\Enums\Tenant\TenantInfoStatus::tryFrom($t->info_status)?->color(),
         'reject_reason' => $t->info_reject_reason
     ]]);
+    // Vai trò suy từ chỗ ở hiện tại (không phải users.role — người chưa có tài khoản vẫn có vai trò): [nhãn, màu badge, icon]
+    $roleOf = function ($tenant) {
+        $link = $tenant->liveLink;
+
+        return match (true) {
+            !$link => ['Chưa ở phòng nào', 'bg-slate-50 text-slate-500 ring-slate-500/20', 'user-x'],
+            \App\Enums\Contract\MemberApproval::isPending($link->approval_status) => ['Chờ duyệt vào phòng', 'bg-amber-50 text-amber-700 ring-amber-600/20', 'hourglass'],
+            $link->is_primary => ['Chủ hộ', 'bg-indigo-50 text-indigo-700 ring-indigo-600/20', 'crown'],
+            default => ['Thành viên', 'bg-sky-50 text-sky-700 ring-sky-600/20', 'user']
+        };
+    };
     $tabBase = request()->except(['info_status', 'page']);
     $activeStatus = request('info_status', '');
 @endphp
 
 @section('content')
     <div class="space-y-5">
+        @if($pendingMembers->isNotEmpty() || $declarations->isNotEmpty())
+            @include('manage.tenants.partials.approvals')
+        @endif
+
         <div class="card p-4 sm:p-5 space-y-4">
             <form method="GET" action="{{ route('manage.tenants.index') }}" class="flex flex-col sm:flex-row gap-3">
                 <input type="hidden" name="info_status" value="{{ $activeStatus }}">
@@ -64,14 +79,18 @@
 
         <div class="card overflow-hidden">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                <p class="text-sm font-bold text-slate-800">{{ $tenants->total() }} khách</p>
-                <p class="text-[11px] font-semibold text-slate-400">Bấm vào khách để xem / sửa hồ sơ</p>
+                <p class="text-sm font-bold text-slate-800">{{ $tenants->total() }} thành viên</p>
+                <p class="text-[11px] font-semibold text-slate-400">Bấm vào thành viên để xem / sửa hồ sơ</p>
             </div>
 
             {{-- Mobile: danh sách thẻ --}}
             <div class="lg:hidden divide-y divide-slate-100">
                 @forelse($tenants as $tenant)
-                    @php $st = \App\Enums\Tenant\TenantInfoStatus::tryFrom($tenant->info_status); @endphp
+                    @php
+                        $st = \App\Enums\Tenant\TenantInfoStatus::tryFrom($tenant->info_status);
+                        [$roleLabel, $roleColor, $roleIcon] = $roleOf($tenant);
+                        $room = $tenant->liveLink?->contract?->room;
+                    @endphp
                     <button type="button" onclick="window.openTenantDrawer({{ $tenant->id }})" class="w-full text-left p-4 flex items-start gap-3 hover:bg-slate-50/70 transition-colors">
                         @include('partials.avatar', ['name' => $tenant->full_name, 'size' => 'w-11 h-11 text-sm'])
                         <span class="min-w-0 flex-1">
@@ -83,6 +102,10 @@
                                 @endif
                             </span>
                             <span class="mt-2 flex flex-wrap gap-1.5">
+                                <span class="badge {{ $roleColor }}"><i data-lucide="{{ $roleIcon }}" class="w-3 h-3"></i>{{ $roleLabel }}</span>
+                                @if($room)
+                                    <span class="badge bg-white text-slate-600 ring-slate-300/60"><i data-lucide="door-open" class="w-3 h-3"></i>Phòng {{ $room->name }} · {{ $room->property?->name }}</span>
+                                @endif
                                 @if($st)<span class="badge {{ $st->color() }}">{{ $st->label() }}</span>@endif
                                 @if($tenant->user_id)
                                     <span class="badge bg-emerald-50 text-emerald-700 ring-emerald-600/20"><i data-lucide="shield-check" class="w-3 h-3"></i>Có tài khoản</span>
@@ -92,7 +115,7 @@
                         <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 shrink-0 mt-3"></i>
                     </button>
                 @empty
-                    @include('partials.empty-state', ['icon' => 'contact', 'title' => 'Chưa có khách nào', 'text' => 'Bấm "Thêm khách" để tạo hồ sơ đầu tiên.'])
+                    @include('partials.empty-state', ['icon' => 'contact', 'title' => 'Chưa có thành viên nào', 'text' => 'Bấm "Thêm thành viên" để tạo hồ sơ đầu tiên.'])
                 @endforelse
             </div>
 
@@ -101,16 +124,20 @@
                 <table class="w-full text-left border-separate border-spacing-y-2">
                     <thead>
                         <tr class="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-                            <th class="py-3 pl-4 pr-4">Khách thuê</th>
+                            <th class="py-3 pl-4 pr-4">Thành viên</th>
+                            <th class="p-3">Vai trò · Phòng</th>
                             <th class="p-3">Liên hệ</th>
                             <th class="p-3">CCCD</th>
-                            <th class="p-3">Khai báo</th>
-                            <th class="p-3 pr-4">Tài khoản</th>
+                            <th class="p-3 pr-4">Khai báo · Tài khoản</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tenants as $tenant)
-                            @php $st = \App\Enums\Tenant\TenantInfoStatus::tryFrom($tenant->info_status); @endphp
+                            @php
+                                $st = \App\Enums\Tenant\TenantInfoStatus::tryFrom($tenant->info_status);
+                                [$roleLabel, $roleColor, $roleIcon] = $roleOf($tenant);
+                                $room = $tenant->liveLink?->contract?->room;
+                            @endphp
                             <tr onclick="window.openTenantDrawer({{ $tenant->id }})" class="group cursor-pointer text-sm">
                                 <td class="py-3 pl-4 pr-4 bg-white border-y border-l border-slate-100 rounded-l-2xl group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors">
                                     <div class="flex items-center gap-3">
@@ -122,6 +149,12 @@
                                     </div>
                                 </td>
                                 <td class="p-3 bg-white border-y border-slate-100 group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors">
+                                    <span class="badge {{ $roleColor }}"><i data-lucide="{{ $roleIcon }}" class="w-3 h-3"></i>{{ $roleLabel }}</span>
+                                    @if($room)
+                                        <a href="{{ route('manage.rooms.show', $room) }}" onclick="event.stopPropagation()" class="block mt-1 text-xs font-bold text-slate-600 hover:text-indigo-600 break-words">Phòng {{ $room->name }} · {{ $room->property?->name }}</a>
+                                    @endif
+                                </td>
+                                <td class="p-3 bg-white border-y border-slate-100 group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors">
                                     <div class="flex flex-col gap-1 text-xs font-semibold text-slate-500">
                                         <span class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-300 shrink-0"></i>{{ $tenant->phone ?? '—' }}</span>
                                         @if($tenant->email)
@@ -130,19 +163,19 @@
                                     </div>
                                 </td>
                                 <td class="p-3 bg-white border-y border-slate-100 group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors text-xs font-mono font-bold text-slate-500 whitespace-nowrap">{{ $tenant->maskedIdNumber() ?? '—' }}</td>
-                                <td class="p-3 bg-white border-y border-slate-100 group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors">
-                                    @if($st)<span class="badge {{ $st->color() }}">{{ $st->label() }}</span>@endif
-                                </td>
                                 <td class="p-3 pr-4 bg-white border-y border-r border-slate-100 rounded-r-2xl group-hover:border-indigo-100 group-hover:bg-indigo-50/30 transition-colors">
-                                    @if($tenant->user_id)
-                                        <span class="badge bg-emerald-50 text-emerald-700 ring-emerald-600/20"><i data-lucide="shield-check" class="w-3 h-3"></i>Đã cấp</span>
-                                    @else
-                                        <span class="badge bg-slate-50 text-slate-500 ring-slate-500/20">Chưa có</span>
-                                    @endif
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @if($st)<span class="badge {{ $st->color() }}">{{ $st->label() }}</span>@endif
+                                        @if($tenant->user_id)
+                                            <span class="badge bg-emerald-50 text-emerald-700 ring-emerald-600/20"><i data-lucide="shield-check" class="w-3 h-3"></i>Có tài khoản</span>
+                                        @else
+                                            <span class="badge bg-slate-50 text-slate-500 ring-slate-500/20">Chưa có tài khoản</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5">@include('partials.empty-state', ['icon' => 'contact', 'title' => 'Chưa có khách nào', 'text' => 'Bấm "Thêm khách" để tạo hồ sơ đầu tiên.'])</td></tr>
+                            <tr><td colspan="5">@include('partials.empty-state', ['icon' => 'contact', 'title' => 'Chưa có thành viên nào', 'text' => 'Bấm "Thêm thành viên" để tạo hồ sơ đầu tiên.'])</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -251,7 +284,7 @@
         currentTenantId = id;
 
         document.getElementById('tenant-drawer-avatar').innerHTML = window.avatarHtml(t ? t.full_name : '+', 'w-11 h-11 text-sm');
-        document.getElementById('tenant-drawer-title').textContent = t ? t.full_name : 'Thêm khách';
+        document.getElementById('tenant-drawer-title').textContent = t ? t.full_name : 'Thêm thành viên';
         document.getElementById('tenant-drawer-sub').textContent = t ? (t.status_label + (t.has_account ? ' · đã có tài khoản' : '')) : 'Hồ sơ mới';
         document.getElementById('tenant-form').action = t ? tenantUrls.update.replace('__ID__', id) : tenantUrls.store;
         document.getElementById('tenant-method').value = t ? 'PUT' : 'POST';
@@ -272,7 +305,7 @@
 
     window.deleteTenant = function () {
         document.getElementById('tenant-delete-form').action = tenantUrls.destroy.replace('__ID__', currentTenantId);
-        window.confirmSubmit('tenant-delete-form', { title: 'Xóa hồ sơ khách?', html: '<p class="text-sm text-slate-600 break-words">Chỉ xóa được hồ sơ chưa từng có trong hợp đồng nào.</p>', confirmText: 'Xóa hồ sơ', danger: true });
+        window.confirmSubmit('tenant-delete-form', { title: 'Xóa hồ sơ thành viên?', html: '<p class="text-sm text-slate-600 break-words">Chỉ xóa được hồ sơ chưa từng có trong hợp đồng nào.</p>', confirmText: 'Xóa hồ sơ', danger: true });
     };
 </script>
 @endpush

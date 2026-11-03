@@ -2,8 +2,10 @@
 
 namespace App\Services\Member;
 
+use App\Enums\Contract\ContractDocumentStatus;
 use App\Exceptions\BusinessException;
 use App\Models\Contract;
+use App\Models\ContractDocument;
 use App\Models\ContractTenant;
 use App\Models\Room;
 use App\Models\Tenant;
@@ -14,6 +16,7 @@ use App\Repositories\Interfaces\TenantRepositoryInterface;
 use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Services\AccountService;
 use App\Services\BaseService;
+use App\Services\Manage\ContractDocumentService;
 use App\Services\Manage\ContractService;
 use App\Services\Manage\TenantService;
 use Illuminate\Database\Eloquent\Collection;
@@ -36,6 +39,7 @@ class HouseholdService extends BaseService
      * @param ContractService $contractService
      * @param AccountService $accountService
      * @param TenantService $tenantService
+     * @param ContractDocumentService $documentService
      */
     public function __construct(
         Contract $model,
@@ -45,7 +49,8 @@ class HouseholdService extends BaseService
         protected UserRepositoryInterface $userRepository,
         protected ContractService $contractService,
         protected AccountService $accountService,
-        protected TenantService $tenantService
+        protected TenantService $tenantService,
+        protected ContractDocumentService $documentService
     ) {
         parent::__construct($model);
     }
@@ -137,6 +142,73 @@ class HouseholdService extends BaseService
 
             return ['status' => false, 'message' => 'Có lỗi xảy ra khi đặt lại mật khẩu.'];
         }
+    }
+
+    /**
+     * Văn bản hợp đồng của hộ mà user được xem: chủ hộ thấy từ khi được gửi duyệt, thành viên chỉ thấy bản đã duyệt.
+     * Bản nháp admin đang soạn không hiện cho ai trong hộ.
+     *
+     * @param User $user
+     * @return ContractDocument|null
+     */
+    public function getContractDocument(User $user): ?ContractDocument
+    {
+        $link = $this->linkRepository->findLiveLinkForUser($user->id);
+        $document = $link ? $this->documentService->findByContract($link->contract_id) : null;
+
+        if (!$document || ContractDocumentStatus::isDraft($document->status)) {
+            return null;
+        }
+
+        return $link->is_primary || $document->isApproved() ? $document : null;
+    }
+
+    /**
+     * Chủ hộ duyệt hợp đồng của hộ mình.
+     *
+     * @param User $owner
+     * @param string|null $version
+     * @return array{status: bool, message: string}
+     */
+    public function approveContract(User $owner, ?string $version): array
+    {
+        $document = $this->ownContractDocument($owner);
+        if (!$document) {
+            return ['status' => false, 'message' => 'Không có hợp đồng nào chờ bạn duyệt.'];
+        }
+
+        return $this->documentService->approve($document, $owner, $version);
+    }
+
+    /**
+     * Chủ hộ yêu cầu chủ nhà sửa hợp đồng.
+     *
+     * @param User $owner
+     * @param string $reason
+     * @param string|null $version
+     * @return array{status: bool, message: string}
+     */
+    public function rejectContract(User $owner, string $reason, ?string $version): array
+    {
+        $document = $this->ownContractDocument($owner);
+        if (!$document) {
+            return ['status' => false, 'message' => 'Không có hợp đồng nào chờ bạn duyệt.'];
+        }
+
+        return $this->documentService->reject($document, $reason, $version);
+    }
+
+    /**
+     * Văn bản của hộ mà user đang là chủ hộ (suy ra từ đăng nhập, không nhận id từ request).
+     *
+     * @param User $owner
+     * @return ContractDocument|null
+     */
+    private function ownContractDocument(User $owner): ?ContractDocument
+    {
+        $link = $this->linkRepository->findLiveLinkForUser($owner->id);
+
+        return $link && $link->is_primary ? $this->documentService->findByContract($link->contract_id) : null;
     }
 
     /**

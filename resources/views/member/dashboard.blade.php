@@ -45,11 +45,8 @@
                 $room = $household['room'];
                 $residentCount = $household['links']->where('approval_status', \App\Enums\Contract\MemberApproval::Approved->value)->count();
                 $profileStatus = $profile ? \App\Enums\Tenant\TenantInfoStatus::tryFrom($profile->info_status) : null;
-                $roomFacts = array_filter([
-                    $room->floor !== null ? ['layers', 'Tầng '.$room->floor] : null,
-                    $room->area ? ['ruler', str_replace('.', ',', (string) (float) $room->area).' m²'] : null,
-                    ['calendar-check', 'Vào ở '.$household['contract']->start_date->format('d/m/Y')]
-                ]);
+                // Tầng, diện tích, giá, dịch vụ nằm ở khối thông tin phòng dùng chung bên dưới
+                $roomFacts = [['calendar-check', 'Vào ở '.$household['contract']->start_date->format('d/m/Y')]];
             @endphp
 
             {{-- Thẻ phòng --}}
@@ -77,28 +74,45 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 sm:gap-4">
-                <div class="card p-4 sm:p-5">
-                    <div class="flex items-start justify-between gap-2">
-                        <p class="section-label">Người ở</p>
-                        <span class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i data-lucide="users" class="w-4 h-4"></i></span>
-                    </div>
-                    <p class="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums mt-2">{{ $residentCount }}<span class="text-slate-300 text-lg sm:text-xl">/{{ $room->max_occupants }}</span></p>
-                    <div class="h-1.5 rounded-full bg-slate-100 mt-3 overflow-hidden">
-                        <div class="h-full rounded-full bg-indigo-500" style="width: {{ min(100, $residentCount * 100 / max($room->max_occupants, 1)) }}%"></div>
-                    </div>
-                </div>
-                <a href="{{ route('member.profile.edit') }}" class="card p-4 sm:p-5 hover:border-indigo-200 transition-colors">
-                    <div class="flex items-start justify-between gap-2">
-                        <p class="section-label">Hồ sơ của bạn</p>
-                        <span class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0"><i data-lucide="id-card" class="w-4 h-4"></i></span>
-                    </div>
+            @include('partials.room-info', ['room' => $room, 'document' => $contractDocument, 'residentCount' => $residentCount])
+
+            <a href="{{ route('member.profile.edit') }}" class="card p-4 flex items-center gap-3 hover:border-indigo-200 transition-colors">
+                <span class="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0"><i data-lucide="id-card" class="w-5 h-5"></i></span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-bold text-slate-800">Hồ sơ của bạn</span>
                     @if($profileStatus)
-                        <span class="badge mt-3 {{ $profileStatus->color() }}">{{ $profileStatus->label() }}</span>
+                        <span class="badge mt-1 {{ $profileStatus->color() }}">{{ $profileStatus->label() }}</span>
                     @endif
-                    <p class="text-[11px] font-bold text-indigo-600 mt-2 flex items-center gap-1">Xem hồ sơ <i data-lucide="arrow-right" class="w-3 h-3"></i></p>
-                </a>
-            </div>
+                </span>
+                <i data-lucide="chevron-right" class="w-5 h-5 shrink-0 text-slate-300"></i>
+            </a>
+
+            {{-- Hợp đồng thuê: chủ hộ có bản chờ duyệt thì nổi bật để không bỏ sót --}}
+            @php
+                $contractStatus = $contractDocument ? \App\Enums\Contract\ContractDocumentStatus::tryFrom($contractDocument->status) : null;
+                $contractAwaiting = $household['isOwner'] && $contractStatus === \App\Enums\Contract\ContractDocumentStatus::Pending;
+            @endphp
+            <a href="{{ route('member.contract.show') }}"
+               class="flex items-center gap-3 rounded-2xl border p-4 transition-colors {{ $contractAwaiting ? 'bg-amber-50 border-amber-200 hover:bg-amber-100/70' : 'card hover:border-indigo-200' }}">
+                <span class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 {{ $contractAwaiting ? 'bg-amber-100 text-amber-600' : 'bg-indigo-50 text-indigo-600' }}">
+                    <i data-lucide="file-signature" class="w-5 h-5"></i>
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-sm font-bold break-words {{ $contractAwaiting ? 'text-amber-800' : 'text-slate-800' }}">
+                        {{ $contractAwaiting ? 'Chủ nhà đã gửi hợp đồng, chờ bạn duyệt' : 'Hợp đồng thuê' }}
+                    </span>
+                    <span class="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold break-words {{ $contractAwaiting ? 'text-amber-700' : 'text-slate-500' }}">
+                        @if($contractAwaiting)
+                            Bấm để đọc toàn văn và đồng ý hoặc yêu cầu sửa.
+                        @elseif($contractStatus)
+                            <span class="badge {{ $contractStatus->color() }}">{{ $contractStatus->label() }}</span> Số {{ $contractDocument->code }}
+                        @else
+                            Chưa có hợp đồng để xem.
+                        @endif
+                    </span>
+                </span>
+                <i data-lucide="chevron-right" class="w-5 h-5 shrink-0 {{ $contractAwaiting ? 'text-amber-500' : 'text-slate-300' }}"></i>
+            </a>
 
             {{-- Người trong phòng --}}
             <div class="card overflow-hidden">
@@ -163,8 +177,8 @@
             <div class="rounded-2xl border-2 border-dashed border-slate-200 p-4 flex items-start gap-3">
                 <span class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0"><i data-lucide="receipt-text" class="w-5 h-5 text-slate-400"></i></span>
                 <div class="min-w-0">
-                    <p class="text-sm font-bold text-slate-600">Hóa đơn & chỉ số điện nước</p>
-                    <p class="text-xs text-slate-400 font-medium mt-0.5 break-words">Sắp ra mắt: xem hóa đơn hằng tháng và ảnh chốt đồng hồ của phòng.</p>
+                    <p class="text-sm font-bold text-slate-600">Hóa đơn & công nợ</p>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5 break-words">Sắp ra mắt: xem hóa đơn hằng tháng, số còn nợ và ảnh chốt đồng hồ của phòng.</p>
                 </div>
             </div>
 

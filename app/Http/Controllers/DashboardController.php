@@ -35,7 +35,8 @@ class DashboardController extends Controller
             return view('member.dashboard', [
                 'user' => $user,
                 'household' => $this->householdService->getPortal($user),
-                'profile' => $this->householdService->getOwnProfile($user)
+                'profile' => $this->householdService->getOwnProfile($user),
+                'contractDocument' => $this->householdService->getContractDocument($user)
             ]);
         }
 

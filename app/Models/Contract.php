@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['room_id', 'start_date', 'end_date', 'ended_at', 'status', 'note'])]
 class Contract extends Model
@@ -45,6 +46,16 @@ class Contract extends Model
         return $this->hasMany(ContractTenant::class)
             ->whereNull('left_at')
             ->where('approval_status', MemberApproval::Approved->value);
+    }
+
+    /**
+     * Văn bản hợp đồng (tối đa 1).
+     *
+     * @return HasOne
+     */
+    public function document(): HasOne
+    {
+        return $this->hasOne(ContractDocument::class);
     }
 
     /**
